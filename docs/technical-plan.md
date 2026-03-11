@@ -1,7 +1,7 @@
 # Pomogotchi Technical Implementation Plan
 
 ## Summary
-Build Pomogotchi as a single React Native codebase targeting macOS and iPhone, with macOS as the primary runtime and iPhone as a companion app. The main product mechanic is: the pet lives with you on Mac during work, then is transferred to the iPhone companion app for movement breaks, and explicitly returned to the Mac afterward.
+Build Pomogotchi as a single Flutter codebase targeting macOS and iPhone, with macOS as the primary runtime and iPhone as a companion app. The main product mechanic is: the pet lives with you on Mac during work, then is transferred to the iPhone companion app for movement breaks, and explicitly returned to the Mac afterward.
 
 The prototype should prove three things:
 - The transfer ritual makes breaks feel tangible and playful.
@@ -16,9 +16,9 @@ The prototype should prove three things:
 - When a break transfer starts on macOS, the Mac UI switches to an away state and disables normal pet interactions until the pet is returned.
 - Breaks remain `short_break` and `movement_break`; hydration is tracked separately as a check-in, not a break type.
 
-### 2. React Native app structure with Apple-specific surfaces
-- Use React Native for the shared app shell, shared domain logic, state management, AI orchestration, and common UI.
-- Add thin platform-specific integrations for Apple-only surfaces that React Native does not cover cleanly by default:
+### 2. Flutter app structure with Apple-specific surfaces
+- Use Flutter for the shared app shell, shared domain logic, state management, AI orchestration, and common UI.
+- Add thin platform-specific integrations for Apple-only surfaces that Flutter does not cover cleanly by default:
   - macOS menu bar presence and popover
   - iOS Live Activity
   - iOS widget
