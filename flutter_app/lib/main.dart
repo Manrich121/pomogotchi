@@ -109,7 +109,7 @@ class _HomeBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       children: const [
-        StatusSection(),
+        // StatusSection(),
         SizedBox(height: 8),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),

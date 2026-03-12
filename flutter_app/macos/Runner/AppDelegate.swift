@@ -1,31 +1,40 @@
+//
+//  StatusBarController.swift
+//  Runner
+//
+//  Created by sky on 17/05/23.
+//
+
 import Cocoa
 import FlutterMacOS
 
 @main
 class AppDelegate: FlutterAppDelegate {
-    
-    var statusBar: NSStatusItem?
-    var popover = NSPopover()
-    var flutterViewController: FlutterViewController?
-    
-    override func applicationDidFinishLaunching(_ aNotification: Notification) {
-        
-        statusBar = NSStatusBar.system.statusItem(withLength: CGFloat(NSStatusItem.variableLength))
-        if let button = statusBar?.button {
-            button.image = NSImage(named: "MenuBarIcon")
-            button.action = #selector(togglePopover(_:))
-        }
+  var statusBarController: StatusBarController?
+
+  override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    return false
+  }
+
+  override func applicationDidFinishLaunching(_ aNotification: Notification) {
+    let panelFlutterViewController = FlutterViewController()
+    panelFlutterViewController.mouseTrackingMode = .inKeyWindow
+    RegisterGeneratedPlugins(registry: panelFlutterViewController)
+
+    let flutterPanel = StatusBarPanel(
+      contentViewController: panelFlutterViewController,
+      contentSize: NSSize(width: 360, height: 360)
+    )
+    statusBarController = StatusBarController(panel: flutterPanel)
+
+    mainFlutterWindow?.orderOut(nil)
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+      self?.statusBarController?.showOnLaunch()
     }
-    
-    @objc func togglePopover(_ sender: AnyObject) {
-        print("clicked!")
-        
-        if let button = statusBar?.button {
-                if popover.isShown {
-                    popover.performClose(sender)
-                } else {
-                    print("Open Popover")
-                }
-            }
-    }
+  }
+
+  override func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+    return true
+  }
 }
