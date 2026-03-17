@@ -11,10 +11,10 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Update dependencies for PowerSync local-only storage, integration testing, and UUID generation in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/pubspec.yaml
-- [ ] T002 Create the feature-first directory structure for app, pomodoro, and test modules under /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib, /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/test, and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/integration_test
-- [ ] T003 [P] Replace the default app bootstrap with Pomogotchi app wiring in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/main.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/app/app.dart
-- [ ] T004 [P] Add shared theme tokens and Material theme setup in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/app/theme/app_theme.dart
+- [X] T001 Update dependencies for PowerSync local-only storage, integration testing, and UUID generation in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/pubspec.yaml
+- [X] T002 Create the feature-first directory structure for app, pomodoro, and test modules under /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib, /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/test, and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/integration_test
+- [X] T003 [P] Replace the default app bootstrap with Pomogotchi app wiring in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/main.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/app/app.dart
+- [X] T004 [P] Add shared theme tokens and Material theme setup in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/app/theme/app_theme.dart
 
 ---
 
@@ -24,14 +24,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Define the local-only PowerSync schema and indexes in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/schema/pomodoro_schema.dart
-- [ ] T006 [P] Create the single-database PowerSync bootstrap and ownership service in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/pomodoro_database.dart
-- [ ] T007 [P] Create the session, wellness event, and daily summary domain models in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/models/session_record.dart, /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/models/wellness_event.dart, and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/models/daily_activity_summary.dart
-- [ ] T008 [P] Create the repository interface and typed persistence failures in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_repository.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_failure.dart
-- [ ] T009 [P] Create PowerSync row mappers and repository scaffolding in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/powersync_pomodoro_repository.dart
-- [ ] T010 [P] Create the injectable clock and app lifecycle services in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/shared/services/app_clock.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/shared/services/app_lifecycle_service.dart
-- [ ] T011 Create the shared pomodoro screen scaffold and extend the app bootstrap created in T003 with route wiring in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/presentation/screens/pomodoro_screen.dart and /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/app/app.dart
-- [ ] T012 Create the base controller and view-state model covering all nine states from FR-004 (loading, idle, focus active, focus paused, break active, break paused, focus completed, break completed, error) in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_controller.dart and /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_view_state.dart
+- [X] T005 Define the local-only PowerSync schema and indexes in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/schema/pomodoro_schema.dart
+- [X] T006 [P] Create the single-database PowerSync bootstrap and ownership service in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/pomodoro_database.dart
+- [X] T007 [P] Create the session, wellness event, and daily summary domain models in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/models/session_record.dart, /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/models/wellness_event.dart, and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/models/daily_activity_summary.dart
+- [X] T008 [P] Create the repository interface and typed persistence failures in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_repository.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_failure.dart
+- [X] T009 [P] Create PowerSync row mappers and repository scaffolding in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/powersync_pomodoro_repository.dart
+- [X] T010 [P] Create the injectable clock and app lifecycle services in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/shared/services/app_clock.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/shared/services/app_lifecycle_service.dart
+- [X] T011 Create the shared pomodoro screen scaffold and extend the app bootstrap created in T003 with route wiring in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/presentation/screens/pomodoro_screen.dart and /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/app/app.dart
+- [X] T012 Create the base controller and view-state model covering all nine states from FR-004 (loading, idle, focus active, focus paused, break active, break paused, focus completed, break completed, error) in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_controller.dart and /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_view_state.dart
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -45,17 +45,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Add unit tests for session state transitions and countdown math in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/test/unit/pomodoro/session_engine_test.dart
-- [ ] T014 [P] [US1] Add widget tests for idle, running, paused, completed, and break-completed timer states; include golden tests for at least the idle and focus-active states to protect against visual regressions in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/test/widget/pomodoro/pomodoro_timer_flow_test.dart
-- [ ] T015 [P] [US1] Add an integration test for focus-to-break lifecycle, app resume restore, and daily-totals persistence across close/reopen (FR-014) in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/integration_test/pomodoro/timer_lifecycle_test.dart
+- [X] T013 [P] [US1] Add unit tests for session state transitions and countdown math in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/test/unit/pomodoro/session_engine_test.dart
+- [X] T014 [P] [US1] Add widget tests for idle, running, paused, completed, and break-completed timer states; include golden tests for at least the idle and focus-active states to protect against visual regressions in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/test/widget/pomodoro/pomodoro_timer_flow_test.dart
+- [X] T015 [P] [US1] Add an integration test for focus-to-break lifecycle, app resume restore, and daily-totals persistence across close/reopen (FR-014) in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/integration_test/pomodoro/timer_lifecycle_test.dart
 
 ### Implementation for User Story 1
 
-- [ ] T016 [P] [US1] Implement the session engine for focus, break, pause, resume, stop, and completion rules in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/services/session_engine.dart
-- [ ] T017 [P] [US1] Implement active-session queries and mutations in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/powersync_pomodoro_repository.dart
-- [ ] T018 [US1] Implement start, pause, resume, stop, break-start, and restore flows in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_controller.dart
-- [ ] T019 [P] [US1] Build the timer header and session action bar widgets in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/timer_header.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/session_action_bar.dart
-- [ ] T020 [US1] Add the focus completion prompt and break-completed transition indicator, wire the full timer flow including loading and break-completed states into the main screen in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/completion_prompt.dart and /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/presentation/screens/pomodoro_screen.dart
+- [X] T016 [P] [US1] Implement the session engine for focus, break, pause, resume, stop, and completion rules in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/services/session_engine.dart
+- [X] T017 [P] [US1] Implement active-session queries and mutations in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/powersync_pomodoro_repository.dart
+- [X] T018 [US1] Implement start, pause, resume, stop, break-start, and restore flows in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_controller.dart
+- [X] T019 [P] [US1] Build the timer header and session action bar widgets in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/timer_header.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/session_action_bar.dart
+- [X] T020 [US1] Add the focus completion prompt and break-completed transition indicator, wire the full timer flow including loading and break-completed states into the main screen in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/completion_prompt.dart and /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/lib/features/pomodoro/presentation/screens/pomodoro_screen.dart
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 

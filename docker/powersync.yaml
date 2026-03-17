@@ -22,6 +22,49 @@ sync_config:
       counters:
         query: SELECT * FROM counters
         auto_subscribe: true
+      sessions:
+        auto_subscribe: true
+        query: |
+          SELECT
+            id,
+            day_key,
+            type,
+            planned_duration_seconds,
+            state,
+            outcome,
+            started_at,
+            last_resumed_at,
+            paused_at,
+            ended_at,
+            remaining_seconds_at_pause
+          FROM sessions
+          WHERE owner_id = auth.user_id()
+      wellness_events:
+        auto_subscribe: true
+        query: |
+          SELECT
+            id,
+            day_key,
+            type,
+            occurred_at
+          FROM wellness_events
+          WHERE owner_id = auth.user_id()
+      daily_activity_summary:
+        auto_subscribe: true
+        query: |
+          SELECT
+            id,
+            day_key,
+            ended_focus_count,
+            ended_break_count,
+            hydration_count,
+            movement_count,
+            last_hydration_at,
+            hydration_timer_anchor_at,
+            hydration_reminder_active,
+            updated_at
+          FROM daily_activity_summary
+          WHERE owner_id = auth.user_id()
 
 client_auth:
   jwks_uri: !env PS_BACKEND_JWKS_URI

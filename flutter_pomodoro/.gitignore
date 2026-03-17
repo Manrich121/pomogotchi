@@ -50,3 +50,4 @@ app.*.map.json
 
 # secrets
 app_config.dart
+libpowersync.dylib
