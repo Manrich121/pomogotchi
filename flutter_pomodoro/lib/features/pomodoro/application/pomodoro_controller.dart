@@ -32,6 +32,7 @@ class PomodoroController extends ChangeNotifier {
   PomodoroViewState get state => _state;
 
   StreamSubscription<DailyActivitySummary>? _summarySubscription;
+  StreamSubscription<SessionRecord?>? _activeSessionSubscription;
   StreamSubscription<List<SessionRecord>>? _sessionsSubscription;
   StreamSubscription<AppLifecycleState>? _lifecycleSubscription;
   Timer? _ticker;
@@ -41,6 +42,7 @@ class PomodoroController extends ChangeNotifier {
   Future<void> initialize() async {
     _stopTicker();
     await _summarySubscription?.cancel();
+    await _activeSessionSubscription?.cancel();
     await _sessionsSubscription?.cancel();
     await _lifecycleSubscription?.cancel();
 
@@ -78,16 +80,31 @@ class PomodoroController extends ChangeNotifier {
         _setState(_state.copyWith(dailySummary: updatedSummary));
       });
 
+      _activeSessionSubscription = _repository.watchActiveSession().listen((
+        activeSession,
+      ) {
+        final nextStatus = activeSession != null
+            ? _statusForSession(activeSession)
+            : _statusWhenNoActiveSession();
+        final nextRemaining = activeSession != null
+            ? _sessionEngine.remainingSeconds(activeSession, _clock.now())
+            : null;
+        _setState(
+          _state.copyWith(
+            activeSession: activeSession,
+            status: nextStatus,
+            remainingSeconds: nextRemaining,
+            errorMessage: null,
+          ),
+        );
+        _syncTickerForState();
+      });
+
       _sessionsSubscription = _repository.watchTodaySessions(dayKey).listen((
         sessions,
       ) {
-        SessionRecord? active;
         SessionRecord? latestEndedCompleted;
         for (final session in sessions) {
-          if (session.isActiveOrPaused) {
-            active = session;
-            break;
-          }
           if (latestEndedCompleted == null &&
               session.state == SessionLifecycleState.ended &&
               session.outcome == SessionOutcome.completed) {
@@ -95,23 +112,25 @@ class PomodoroController extends ChangeNotifier {
           }
         }
 
-        final nextStatus = active != null
-            ? _statusForSession(active)
-            : _completionStatus ??
-                  (latestEndedCompleted != null
-                      ? _statusForSession(latestEndedCompleted)
-                      : PomodoroScreenStatus.idle);
-        final nextRemaining = active != null
-            ? _sessionEngine.remainingSeconds(active, _clock.now())
-            : null;
-        if (active == null && latestEndedCompleted != null) {
-          _completionStatus = nextStatus;
+        final activeSession = _state.activeSession;
+        if (activeSession != null) {
+          _completionStatus = null;
+        } else if (latestEndedCompleted != null) {
+          _completionStatus = _statusForSession(latestEndedCompleted);
         }
+        final nextStatus = activeSession != null
+            ? _statusForSession(activeSession)
+            : _statusWhenNoActiveSession(
+                completedSession: latestEndedCompleted,
+              );
+        final nextRemaining = activeSession != null
+            ? _sessionEngine.remainingSeconds(activeSession, _clock.now())
+            : null;
         _setState(
           _state.copyWith(
-            activeSession: active,
             status: nextStatus,
             remainingSeconds: nextRemaining,
+            errorMessage: null,
           ),
         );
         _syncTickerForState();
@@ -221,6 +240,7 @@ class PomodoroController extends ChangeNotifier {
   void dispose() {
     _stopTicker();
     unawaited(_summarySubscription?.cancel());
+    unawaited(_activeSessionSubscription?.cancel());
     unawaited(_sessionsSubscription?.cancel());
     unawaited(_lifecycleSubscription?.cancel());
     super.dispose();
@@ -259,6 +279,26 @@ class PomodoroController extends ChangeNotifier {
       return session.type == SessionType.focus
           ? PomodoroScreenStatus.focusCompleted
           : PomodoroScreenStatus.breakCompleted;
+    }
+
+    return PomodoroScreenStatus.idle;
+  }
+
+  PomodoroScreenStatus _statusWhenNoActiveSession({
+    SessionRecord? completedSession,
+  }) {
+    final completionStatus = _completionStatus;
+    if (completionStatus != null) {
+      return completionStatus;
+    }
+
+    if (completedSession != null) {
+      return _statusForSession(completedSession);
+    }
+
+    if (_state.status == PomodoroScreenStatus.focusCompleted ||
+        _state.status == PomodoroScreenStatus.breakCompleted) {
+      return _state.status;
     }
 
     return PomodoroScreenStatus.idle;

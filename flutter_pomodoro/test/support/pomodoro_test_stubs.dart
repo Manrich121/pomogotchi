@@ -50,11 +50,13 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
   final List<WellnessEvent> _events = [];
   final Map<String, DailyActivitySummary> _summaries = {};
   final StreamController<List<SessionRecord>> _sessionsController =
-      StreamController<List<SessionRecord>>.broadcast();
+      StreamController<List<SessionRecord>>.broadcast(sync: true);
+  final StreamController<SessionRecord?> _activeSessionController =
+      StreamController<SessionRecord?>.broadcast(sync: true);
   final StreamController<List<WellnessEvent>> _eventsController =
-      StreamController<List<WellnessEvent>>.broadcast();
+      StreamController<List<WellnessEvent>>.broadcast(sync: true);
   final StreamController<DailyActivitySummary> _summaryController =
-      StreamController<DailyActivitySummary>.broadcast();
+      StreamController<DailyActivitySummary>.broadcast(sync: true);
 
   int _idCounter = 0;
   bool _disposed = false;
@@ -63,15 +65,29 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
     _sessions.insert(0, session);
   }
 
+  void syncRemoteSession(SessionRecord session) {
+    _sessions.removeWhere((existing) => existing.id == session.id);
+    _sessions.insert(0, session);
+    _emitSessions();
+    _emitActiveSession();
+  }
+
   @override
   Future<SessionRecord?> loadActiveSession() async {
-    for (final session in _sessions) {
-      if (session.state == SessionLifecycleState.active ||
-          session.state == SessionLifecycleState.paused) {
-        return session;
-      }
-    }
-    return null;
+    return _currentActiveSession();
+  }
+
+  @override
+  Stream<SessionRecord?> watchActiveSession() {
+    return Stream.multi((controller) {
+      controller.add(_currentActiveSession());
+      final subscription = _activeSessionController.stream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = subscription.cancel;
+    });
   }
 
   @override
@@ -92,7 +108,8 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
       lastResumedAt: startedAt.toUtc(),
     );
     _sessions.insert(0, session);
-    _emitSessions(dayKey);
+    _emitSessions();
+    _emitActiveSession();
     return session;
   }
 
@@ -109,7 +126,8 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
       remainingSecondsAtPause: remainingSecondsAtPause,
     );
     _sessions[index] = session;
-    _emitSessions(session.dayKey);
+    _emitSessions();
+    _emitActiveSession();
     return session;
   }
 
@@ -125,7 +143,8 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
       pausedAt: null,
     );
     _sessions[index] = session;
-    _emitSessions(session.dayKey);
+    _emitSessions();
+    _emitActiveSession();
     return session;
   }
 
@@ -159,18 +178,32 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
         _summaryController.add(_summaries[current.dayKey]!);
       }
     }
-    _emitSessions(current.dayKey);
+    _emitSessions();
+    _emitActiveSession();
     return ended;
   }
 
   @override
   Stream<List<SessionRecord>> watchTodaySessions(String dayKey) {
-    Future<void>.microtask(() {
-      if (!_disposed && !_sessionsController.isClosed) {
-        _emitSessions(dayKey);
-      }
+    return Stream.multi((controller) {
+      controller.add(
+        _sessions
+            .where((session) => session.dayKey == dayKey)
+            .toList(growable: false),
+      );
+      final subscription = _sessionsController.stream.listen(
+        (sessions) {
+          controller.add(
+            sessions
+                .where((session) => session.dayKey == dayKey)
+                .toList(growable: false),
+          );
+        },
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = subscription.cancel;
     });
-    return _sessionsController.stream;
   }
 
   @override
@@ -281,18 +314,32 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
     return _summaryController.stream;
   }
 
-  void _emitSessions(String dayKey) {
-    final filtered = _sessions
-        .where((session) => session.dayKey == dayKey)
-        .toList();
+  SessionRecord? _currentActiveSession() {
+    for (final session in _sessions) {
+      if (session.state == SessionLifecycleState.active ||
+          session.state == SessionLifecycleState.paused) {
+        return session;
+      }
+    }
+    return null;
+  }
+
+  void _emitActiveSession() {
+    if (!_disposed && !_activeSessionController.isClosed) {
+      _activeSessionController.add(_currentActiveSession());
+    }
+  }
+
+  void _emitSessions() {
     if (!_disposed && !_sessionsController.isClosed) {
-      _sessionsController.add(filtered);
+      _sessionsController.add(List<SessionRecord>.unmodifiable(_sessions));
     }
   }
 
   Future<void> dispose() async {
     _disposed = true;
     await _sessionsController.close();
+    await _activeSessionController.close();
     await _eventsController.close();
     await _summaryController.close();
   }

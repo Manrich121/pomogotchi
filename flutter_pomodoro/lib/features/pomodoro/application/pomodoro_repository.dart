@@ -5,6 +5,8 @@ import 'package:flutter_pomodoro/features/pomodoro/domain/models/wellness_event.
 abstract class PomodoroRepository {
   Future<SessionRecord?> loadActiveSession();
 
+  Stream<SessionRecord?> watchActiveSession();
+
   Future<SessionRecord> createSession({
     required SessionType type,
     required DateTime startedAt,

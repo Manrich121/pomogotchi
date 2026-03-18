@@ -147,5 +147,8 @@ void main() {
       find.byType(PomodoroScreen),
       matchesGoldenFile('goldens/pomodoro_focus_active.png'),
     );
+
+    await controller.stopSession();
+    await tester.pump();
   });
 }

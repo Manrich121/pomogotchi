@@ -43,6 +43,18 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
   }
 
   @override
+  Stream<SessionRecord?> watchActiveSession() {
+    return _database
+        .watch('''
+          SELECT * FROM $sessionsTable
+          WHERE state IN ('active', 'paused')
+          ORDER BY started_at DESC
+          LIMIT 1
+          ''')
+        .map((rows) => rows.isEmpty ? null : _sessionFromRow(rows.first));
+  }
+
+  @override
   Future<SessionRecord> createSession({
     required SessionType type,
     required DateTime startedAt,

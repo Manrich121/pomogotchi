@@ -20,6 +20,7 @@ class _MagicLinkSignInScreenState extends State<MagicLinkSignInScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isRequestingLink = false;
   bool _isVerifyingCode = false;
+  bool _canEnterVerificationCode = false;
   String? _errorMessage;
   String? _statusMessage;
 
@@ -49,6 +50,7 @@ class _MagicLinkSignInScreenState extends State<MagicLinkSignInScreen> {
         return;
       }
       setState(() {
+        _canEnterVerificationCode = true;
         _statusMessage =
             'Magic link sent to $email. Open it on this device or enter the 6-digit code from the email.';
       });
@@ -176,43 +178,47 @@ class _MagicLinkSignInScreenState extends State<MagicLinkSignInScreen> {
                             : 'Send magic link',
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Or enter the code from the email',
-                      style: theme.textTheme.titleMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _codeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email code',
-                        hintText: '123456',
-                        border: OutlineInputBorder(),
+                    if (_canEnterVerificationCode) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'Or enter the code from the email',
+                        style: theme.textTheme.titleMedium,
+                        textAlign: TextAlign.center,
                       ),
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _verifyCode(),
-                      validator: (value) {
-                        final code = value?.trim() ?? '';
-                        if (code.isEmpty) {
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _codeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email code',
+                          hintText: '123456',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _verifyCode(),
+                        validator: (value) {
+                          final code = value?.trim() ?? '';
+                          if (code.isEmpty) {
+                            return null;
+                          }
+                          if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+                            return 'Enter the 6-digit code from the email';
+                          }
                           return null;
-                        }
-                        if (!RegExp(r'^\d{6}$').hasMatch(code)) {
-                          return 'Enter the 6-digit code from the email';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: _isRequestingLink || _isVerifyingCode
-                          ? null
-                          : _verifyCode,
-                      child: Text(
-                        _isVerifyingCode ? 'Verifying code...' : 'Verify code',
+                        },
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      OutlinedButton(
+                        onPressed: _isRequestingLink || _isVerifyingCode
+                            ? null
+                            : _verifyCode,
+                        child: Text(
+                          _isVerifyingCode
+                              ? 'Verifying code...'
+                              : 'Verify code',
+                        ),
+                      ),
+                    ],
                     if (_statusMessage != null) ...[
                       const SizedBox(height: 16),
                       Text(
