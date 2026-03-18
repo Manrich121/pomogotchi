@@ -6,9 +6,10 @@ import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/session_
 import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/timer_header.dart';
 
 class PomodoroScreen extends StatelessWidget {
-  const PomodoroScreen({super.key, required this.controller});
+  const PomodoroScreen({super.key, required this.controller, this.onSignOut});
 
   final PomodoroController controller;
+  final Future<void> Function()? onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +18,17 @@ class PomodoroScreen extends StatelessWidget {
       builder: (context, _) {
         final state = controller.state;
         return Scaffold(
-          appBar: AppBar(title: const Text('Pomogotchi')),
+          appBar: AppBar(
+            title: const Text('Pomogotchi'),
+            actions: [
+              if (onSignOut != null)
+                IconButton(
+                  onPressed: onSignOut,
+                  tooltip: 'Sign out',
+                  icon: const Icon(Icons.logout),
+                ),
+            ],
+          ),
           body: Padding(
             padding: const EdgeInsets.all(16),
             child: ListView(

@@ -78,8 +78,13 @@ class FakePomodoroAuthClient implements PomodoroAuthClient {
   PomodoroAuthSession? _currentSession;
   bool _isLoggedIn;
   int initializeCalls = 0;
-  int signInCalls = 0;
+  int requestMagicLinkCalls = 0;
+  int verifyEmailOtpCalls = 0;
+  int signOutCalls = 0;
   int refreshCalls = 0;
+  String? lastMagicLinkEmail;
+  String? lastVerifiedEmail;
+  String? lastVerifiedToken;
 
   @override
   Stream<PomodoroAuthEvent> get authStateChanges => _controller.stream;
@@ -107,13 +112,26 @@ class FakePomodoroAuthClient implements PomodoroAuthClient {
   }
 
   @override
-  Future<void> signInAnonymously() async {
-    signInCalls += 1;
-    _isLoggedIn = true;
-    _currentSession ??= const PomodoroAuthSession(
-      accessToken: 'anon-token',
-      userId: 'anon-user',
-    );
+  Future<void> requestMagicLink(String email) async {
+    requestMagicLinkCalls += 1;
+    lastMagicLinkEmail = email;
+  }
+
+  @override
+  Future<void> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async {
+    verifyEmailOtpCalls += 1;
+    lastVerifiedEmail = email;
+    lastVerifiedToken = token;
+  }
+
+  @override
+  Future<void> signOut() async {
+    signOutCalls += 1;
+    _isLoggedIn = false;
+    _currentSession = null;
   }
 
   void emit(

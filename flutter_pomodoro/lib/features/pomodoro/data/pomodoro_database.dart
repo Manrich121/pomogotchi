@@ -54,6 +54,22 @@ class PomodoroDatabaseOwner {
     }
   }
 
+  Future<void> clearForSignOut() async {
+    final db = _database;
+    _database = null;
+    if (db == null) {
+      return;
+    }
+
+    await _syncCoordinator.dispose();
+    try {
+      await db.disconnectAndClear();
+    } catch (_) {
+      await db.disconnect();
+    }
+    await db.close();
+  }
+
   Future<String> _databasePath() async {
     if (kIsWeb) {
       return fileName;

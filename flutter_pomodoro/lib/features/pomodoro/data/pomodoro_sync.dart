@@ -57,7 +57,11 @@ abstract class PomodoroAuthClient {
 
   PomodoroRestClient get restClient;
 
-  Future<void> signInAnonymously();
+  Future<void> requestMagicLink(String email);
+
+  Future<void> verifyEmailOtp({required String email, required String token});
+
+  Future<void> signOut();
 
   Future<void> refreshSession();
 }
@@ -126,9 +130,31 @@ class SupabasePomodoroAuthClient implements PomodoroAuthClient {
       SupabaseRestClientAdapter(Supabase.instance.client.rest);
 
   @override
-  Future<void> signInAnonymously() async {
-    _log.info('Signing in anonymously');
-    await Supabase.instance.client.auth.signInAnonymously();
+  Future<void> requestMagicLink(String email) async {
+    _log.info('Requesting magic link for $email');
+    await Supabase.instance.client.auth.signInWithOtp(
+      email: email,
+      emailRedirectTo: AppConfig.authRedirectUrl,
+      shouldCreateUser: true,
+    );
+  }
+
+  @override
+  Future<void> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async {
+    _log.info('Verifying email OTP for $email');
+    await Supabase.instance.client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.email,
+    );
+  }
+
+  @override
+  Future<void> signOut() async {
+    await Supabase.instance.client.auth.signOut();
   }
 
   @override
@@ -272,12 +298,10 @@ class PomodoroSyncCoordinator {
 
   Future<void> attach(PowerSyncDatabase database) async {
     await _authClient.initialize();
-    if (!_authClient.isLoggedIn) {
-      await _authClient.signInAnonymously();
+    if (_authClient.isLoggedIn) {
+      _connector = PomodoroSupabaseConnector(_authClient);
+      await _connectDatabase(database, _connector!, pomodoroSyncOptions);
     }
-
-    _connector = PomodoroSupabaseConnector(_authClient);
-    await _connectDatabase(database, _connector!, pomodoroSyncOptions);
 
     await _authSubscription?.cancel();
     _authSubscription = _authClient.authStateChanges.listen((event) {

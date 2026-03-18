@@ -47,8 +47,8 @@ void main() {
           await coordinator.attach(database);
 
           expect(authClient.initializeCalls, 1);
-          expect(authClient.signInCalls, 1);
-          expect(connectCalls, hasLength(1));
+          expect(authClient.requestMagicLinkCalls, 0);
+          expect(connectCalls, isEmpty);
 
           authClient.emit(
             PomodoroAuthEvent.signedIn,
@@ -59,7 +59,7 @@ void main() {
             isLoggedIn: true,
           );
           await Future<void>.delayed(Duration.zero);
-          expect(connectCalls, hasLength(2));
+          expect(connectCalls, hasLength(1));
 
           authClient.emit(PomodoroAuthEvent.signedOut, isLoggedIn: false);
           await Future<void>.delayed(Duration.zero);

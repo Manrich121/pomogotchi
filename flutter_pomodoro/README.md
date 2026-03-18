@@ -23,6 +23,13 @@ docker compose --file ./docker/compose.yaml --env-file .env.local up -d
 flutter run
 ```
 
+## Magic link sign-in
+
+- The app uses Supabase email magic links instead of anonymous auth.
+- Local emails are delivered to Mailpit at `http://127.0.0.1:54324`.
+- The callback URL used by the app is `com.example.flutterpomodoro://login-callback`.
+- If you change `supabase/config.toml`, restart the local Supabase stack before testing auth again.
+
 ## Web
 
 To prepare the web SQLite runtime, run:
