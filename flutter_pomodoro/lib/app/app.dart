@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_pomodoro/app/theme/app_theme.dart';
 import 'package:flutter_pomodoro/features/auth/presentation/magic_link_sign_in_screen.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_controller.dart';
@@ -42,6 +44,10 @@ class _PomogotchiBootstrap extends StatefulWidget {
 }
 
 class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
+  static const MethodChannel _statusBarMenuChannel = MethodChannel(
+    'pomogotchi/status_bar_menu',
+  );
+
   late final PomodoroDatabaseOwner _databaseOwner;
   late final PomodoroAuthClient _authClient;
   FlutterAppLifecycleService? _lifecycleService;
@@ -56,8 +62,14 @@ class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
     super.initState();
     _databaseOwner = widget.databaseOwner ?? PomodoroDatabaseOwner();
     _authClient = widget.authClient ?? pomodoroAuthClient;
+    if (_usesStatusBarSignOut) {
+      _statusBarMenuChannel.setMethodCallHandler(_handleStatusBarMethodCall);
+    }
     _initializeAuth();
   }
+
+  bool get _usesStatusBarSignOut =>
+      defaultTargetPlatform == TargetPlatform.macOS;
 
   Future<void> _initializeAuth() async {
     try {
@@ -182,8 +194,21 @@ class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
     await _authClient.signOut();
   }
 
+  Future<void> _handleStatusBarMethodCall(MethodCall call) async {
+    switch (call.method) {
+      case 'signOut':
+        await _signOut();
+        return;
+      default:
+        throw MissingPluginException('Unhandled method: ${call.method}');
+    }
+  }
+
   @override
   void dispose() {
+    if (_usesStatusBarSignOut) {
+      _statusBarMenuChannel.setMethodCallHandler(null);
+    }
     _authSubscription?.cancel();
     final controller = _controller;
     final lifecycle = _lifecycleService;
@@ -224,6 +249,9 @@ class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
       );
     }
 
-    return PomodoroScreen(controller: controller, onSignOut: _signOut);
+    return PomodoroScreen(
+      controller: controller,
+      onSignOut: _usesStatusBarSignOut ? null : _signOut,
+    );
   }
 }
