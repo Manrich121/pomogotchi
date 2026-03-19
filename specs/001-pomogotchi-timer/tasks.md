@@ -69,16 +69,16 @@
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] Add unit tests for daily summary aggregation (explicitly covering stopped-early sessions incrementing the same counter as completed sessions per FR-011) and wellness write behavior in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/test/unit/pomodoro/daily_summary_service_test.dart
-- [ ] T022 [P] [US2] Add widget tests for hydration and movement logging updates in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/test/widget/pomodoro/wellness_logging_test.dart
+- [x] T021 [P] [US2] Add unit tests for daily summary aggregation (explicitly covering stopped-early sessions incrementing the same counter as completed sessions per FR-011) and wellness write behavior in /Users/manrichvangreunen/Documents/my-projects/flutter_pomodoro/test/unit/pomodoro/daily_summary_service_test.dart
+- [x] T022 [P] [US2] Add widget tests for hydration and movement logging updates in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/test/widget/pomodoro/wellness_logging_test.dart
 
 ### Implementation for User Story 2
 
-- [ ] T023 [P] [US2] Implement the daily summary aggregation service in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/services/daily_summary_service.dart
-- [ ] T024 [P] [US2] Implement wellness-event writes and summary transactions in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/powersync_pomodoro_repository.dart
-- [ ] T025 [US2] Extend the controller with hydration and movement logging actions in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_controller.dart
-- [ ] T026 [P] [US2] Build the daily summary panel and wellness action widgets in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/daily_summary_panel.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/wellness_actions.dart
-- [ ] T027 [US2] Integrate live summary data and one-tap wellness logging into /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/screens/pomodoro_screen.dart
+- [x] T023 [P] [US2] Implement the daily summary aggregation service in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/domain/services/daily_summary_service.dart
+- [x] T024 [P] [US2] Implement wellness-event writes and summary transactions in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/data/powersync_pomodoro_repository.dart
+- [x] T025 [US2] Extend the controller with hydration and movement logging actions in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/application/pomodoro_controller.dart
+- [x] T026 [P] [US2] Build the daily summary panel and wellness action widgets in /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/daily_summary_panel.dart and /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/widgets/wellness_actions.dart
+- [x] T027 [US2] Integrate live summary data and one-tap wellness logging into /Users/manrichvangreunen/Documents/my-projects/pomogotchi/flutter_pomodoro/lib/features/pomodoro/presentation/screens/pomodoro_screen.dart
 
 **Checkpoint**: At this point, User Stories 1 and 2 should both work independently
 

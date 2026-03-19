@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_repository.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_view_state.dart';
-import 'package:flutter_pomodoro/features/pomodoro/domain/services/session_engine.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/daily_activity_summary.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/session_record.dart';
+import 'package:flutter_pomodoro/features/pomodoro/domain/models/wellness_event.dart';
+import 'package:flutter_pomodoro/features/pomodoro/domain/services/session_engine.dart';
 import 'package:flutter_pomodoro/shared/services/app_clock.dart';
 import 'package:flutter_pomodoro/shared/services/app_lifecycle_service.dart';
 
@@ -159,6 +160,14 @@ class PomodoroController extends ChangeNotifier {
 
   Future<void> startBreakSession() async {
     await _startSession(SessionType.breakTime);
+  }
+
+  Future<void> logHydration() async {
+    await _logWellnessEvent(WellnessEventType.hydration);
+  }
+
+  Future<void> logMovement() async {
+    await _logWellnessEvent(WellnessEventType.movement);
   }
 
   Future<void> pauseSession() async {
@@ -322,6 +331,14 @@ class PomodoroController extends ChangeNotifier {
       ),
     );
     _syncTickerForState();
+  }
+
+  Future<void> _logWellnessEvent(WellnessEventType type) async {
+    await _repository.addWellnessEvent(
+      type: type,
+      occurredAt: _clock.now(),
+      dayKey: _todayDayKey,
+    );
   }
 
   void _syncTickerForState() {

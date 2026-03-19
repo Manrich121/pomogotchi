@@ -6,6 +6,7 @@ import 'package:flutter_pomodoro/features/pomodoro/data/pomodoro_database.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/daily_activity_summary.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/session_record.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/wellness_event.dart';
+import 'package:flutter_pomodoro/features/pomodoro/domain/services/daily_summary_service.dart';
 import 'package:flutter_pomodoro/shared/services/app_clock.dart';
 import 'package:flutter_pomodoro/shared/services/app_lifecycle_service.dart';
 import 'package:powersync/powersync.dart';
@@ -49,6 +50,7 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
   final List<SessionRecord> _sessions = [];
   final List<WellnessEvent> _events = [];
   final Map<String, DailyActivitySummary> _summaries = {};
+  final DailySummaryService _dailySummaryService = const DailySummaryService();
   final StreamController<List<SessionRecord>> _sessionsController =
       StreamController<List<SessionRecord>>.broadcast(sync: true);
   final StreamController<SessionRecord?> _activeSessionController =
@@ -163,21 +165,21 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
       pausedAt: null,
     );
     _sessions[index] = ended;
-    final summary = _summaries[current.dayKey];
-    if (summary != null) {
-      _summaries[current.dayKey] = summary.copyWith(
-        endedFocusCount: current.type == SessionType.focus
-            ? summary.endedFocusCount + 1
-            : summary.endedFocusCount,
-        endedBreakCount: current.type == SessionType.breakTime
-            ? summary.endedBreakCount + 1
-            : summary.endedBreakCount,
-        updatedAt: endedAt.toUtc(),
-      );
-      if (!_disposed && !_summaryController.isClosed) {
-        _summaryController.add(_summaries[current.dayKey]!);
-      }
+
+    final summary = await loadOrCreateDailySummary(
+      dayKey: current.dayKey,
+      openedAt: endedAt,
+    );
+    final updatedSummary = _dailySummaryService.applyEndedSession(
+      summary: summary,
+      session: ended,
+      endedAt: endedAt,
+    );
+    _summaries[current.dayKey] = updatedSummary;
+    if (!_disposed && !_summaryController.isClosed) {
+      _summaryController.add(updatedSummary);
     }
+
     _emitSessions();
     _emitActiveSession();
     return ended;
@@ -219,24 +221,49 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
       occurredAt: occurredAt.toUtc(),
     );
     _events.insert(0, event);
+
+    final summary = await loadOrCreateDailySummary(
+      dayKey: dayKey,
+      openedAt: occurredAt,
+    );
+    final updatedSummary = _dailySummaryService.applyWellnessEvent(
+      summary: summary,
+      event: event,
+    );
+    _summaries[dayKey] = updatedSummary;
+
     if (!_disposed && !_eventsController.isClosed) {
       _eventsController.add(
         _events.where((event) => event.dayKey == dayKey).toList(),
       );
+    }
+    if (!_disposed && !_summaryController.isClosed) {
+      _summaryController.add(updatedSummary);
     }
     return event;
   }
 
   @override
   Stream<List<WellnessEvent>> watchTodayWellnessEvents(String dayKey) {
-    Future<void>.microtask(() {
-      if (!_disposed && !_eventsController.isClosed) {
-        _eventsController.add(
-          _events.where((event) => event.dayKey == dayKey).toList(),
-        );
-      }
+    return Stream.multi((controller) {
+      controller.add(
+        _events
+            .where((event) => event.dayKey == dayKey)
+            .toList(growable: false),
+      );
+      final subscription = _eventsController.stream.listen(
+        (events) {
+          controller.add(
+            events
+                .where((event) => event.dayKey == dayKey)
+                .toList(growable: false),
+          );
+        },
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = subscription.cancel;
     });
-    return _eventsController.stream;
   }
 
   @override
@@ -248,16 +275,10 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
     if (existing != null) {
       return existing;
     }
-    final summary = DailyActivitySummary(
+    final summary = _dailySummaryService.create(
       id: 'summary-${++_idCounter}',
       dayKey: dayKey,
-      endedFocusCount: 0,
-      endedBreakCount: 0,
-      hydrationCount: 0,
-      movementCount: 0,
-      hydrationTimerAnchorAt: openedAt.toUtc(),
-      hydrationReminderActive: false,
-      updatedAt: openedAt.toUtc(),
+      openedAt: openedAt,
     );
     _summaries[dayKey] = summary;
     if (!_disposed && !_summaryController.isClosed) {
@@ -271,7 +292,21 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
     required String dayKey,
     required DateTime now,
   }) async {
-    return loadOrCreateDailySummary(dayKey: dayKey, openedAt: now);
+    final summary = await loadOrCreateDailySummary(
+      dayKey: dayKey,
+      openedAt: now,
+    );
+    final refreshed = _dailySummaryService.aggregate(
+      summary: summary,
+      sessions: _sessions.where((session) => session.dayKey == dayKey),
+      wellnessEvents: _events.where((event) => event.dayKey == dayKey),
+      now: now,
+    );
+    _summaries[dayKey] = refreshed;
+    if (!_disposed && !_summaryController.isClosed) {
+      _summaryController.add(refreshed);
+    }
+    return refreshed;
   }
 
   @override
@@ -298,20 +333,22 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
 
   @override
   Stream<DailyActivitySummary> watchDailySummary(String dayKey) {
-    Future<void>.microtask(() async {
-      if (_disposed || _summaryController.isClosed) {
-        return;
+    return Stream.multi((controller) {
+      final existing = _summaries[dayKey];
+      if (existing != null) {
+        controller.add(existing);
       }
-      final summary = await loadOrCreateDailySummary(
-        dayKey: dayKey,
-        openedAt: DateTime.now().toUtc(),
+      final subscription = _summaryController.stream.listen(
+        (summary) {
+          if (summary.dayKey == dayKey) {
+            controller.add(summary);
+          }
+        },
+        onError: controller.addError,
+        onDone: controller.close,
       );
-      if (_disposed || _summaryController.isClosed) {
-        return;
-      }
-      _summaryController.add(summary);
+      controller.onCancel = subscription.cancel;
     });
-    return _summaryController.stream;
   }
 
   SessionRecord? _currentActiveSession() {

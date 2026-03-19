@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_controller.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_view_state.dart';
 import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/completion_prompt.dart';
+import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/daily_summary_panel.dart';
 import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/session_action_bar.dart';
 import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/timer_header.dart';
+import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/wellness_actions.dart';
 
 class PomodoroScreen extends StatelessWidget {
   const PomodoroScreen({super.key, required this.controller, this.onSignOut});
@@ -17,6 +19,9 @@ class PomodoroScreen extends StatelessWidget {
       animation: controller,
       builder: (context, _) {
         final state = controller.state;
+        final showInteractiveContent =
+            state.status != PomodoroScreenStatus.loading &&
+            state.status != PomodoroScreenStatus.error;
         return Scaffold(
           appBar: AppBar(
             title: const Text('Pomogotchi'),
@@ -33,22 +38,37 @@ class PomodoroScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: ListView(
               children: [
-                TimerHeader(
-                  status: state.status,
-                  remainingSeconds: state.remainingSeconds,
-                ),
+                showInteractiveContent
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: TimerHeader(
+                              status: state.status,
+                              remainingSeconds: state.remainingSeconds,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          WellnessActions(
+                            compact: true,
+                            onLogHydration: controller.logHydration,
+                            onLogMovement: controller.logMovement,
+                          ),
+                        ],
+                      )
+                    : TimerHeader(
+                        status: state.status,
+                        remainingSeconds: state.remainingSeconds,
+                      ),
                 const SizedBox(height: 16),
                 SessionActionBar(status: state.status, controller: controller),
                 const SizedBox(height: 16),
                 CompletionPrompt(status: state.status, controller: controller),
                 const SizedBox(height: 16),
-                if (state.dailySummary != null) ...[
-                  Text('Focus ended: ${state.dailySummary!.endedFocusCount}'),
-                  Text('Break ended: ${state.dailySummary!.endedBreakCount}'),
-                  Text('Hydration: ${state.dailySummary!.hydrationCount}'),
-                  Text('Movement: ${state.dailySummary!.movementCount}'),
+                if (state.dailySummary != null && showInteractiveContent) ...[
+                  DailySummaryPanel(summary: state.dailySummary!),
+                  const SizedBox(height: 16),
                 ],
-                const SizedBox(height: 16),
                 _buildStateHint(context, state),
               ],
             ),
@@ -75,6 +95,6 @@ class PomodoroScreen extends StatelessWidget {
         ],
       );
     }
-    return const Text('Foundational Pomodoro scaffold ready.');
+    return const SizedBox.shrink();
   }
 }

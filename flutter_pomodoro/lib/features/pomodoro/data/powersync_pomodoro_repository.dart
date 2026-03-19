@@ -1,10 +1,11 @@
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_failure.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_repository.dart';
-import 'package:flutter_pomodoro/features/pomodoro/data/schema/pomodoro_schema.dart';
 import 'package:flutter_pomodoro/features/pomodoro/data/pomodoro_sync.dart';
+import 'package:flutter_pomodoro/features/pomodoro/data/schema/pomodoro_schema.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/daily_activity_summary.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/session_record.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/wellness_event.dart';
+import 'package:flutter_pomodoro/features/pomodoro/domain/services/daily_summary_service.dart';
 import 'package:powersync/powersync.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,12 +14,16 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
     this._database, {
     Uuid? uuid,
     String? Function()? currentUserId,
+    DailySummaryService? dailySummaryService,
   }) : _uuid = uuid ?? const Uuid(),
-       _currentUserId = currentUserId ?? currentPomodoroUserId;
+       _currentUserId = currentUserId ?? currentPomodoroUserId,
+       _dailySummaryService =
+           dailySummaryService ?? const DailySummaryService();
 
   final PowerSyncDatabase _database;
   final Uuid _uuid;
   final String? Function() _currentUserId;
+  final DailySummaryService _dailySummaryService;
 
   @override
   Future<SessionRecord?> loadActiveSession() async {
@@ -185,11 +190,23 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
         [sessionId],
       );
       final existingSession = _sessionFromRow(existingRow);
-      final endedAtIso = endedAt.toUtc().toIso8601String();
+      if (existingSession.state == SessionLifecycleState.ended) {
+        return existingSession;
+      }
 
-      await loadOrCreateDailySummary(
+      final summary = await loadOrCreateDailySummary(
         dayKey: existingSession.dayKey,
         openedAt: endedAt,
+      );
+      final endedSession = existingSession.copyWith(
+        state: SessionLifecycleState.ended,
+        outcome: outcome,
+        endedAt: endedAt.toUtc(),
+      );
+      final nextSummary = _dailySummaryService.applyEndedSession(
+        summary: summary,
+        session: endedSession,
+        endedAt: endedAt,
       );
 
       await _database.writeTransaction((tx) async {
@@ -199,26 +216,13 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
           SET state = 'ended', outcome = ?, ended_at = ?, paused_at = NULL
           WHERE id = ?
           ''',
-          [_sessionOutcomeToSql(outcome), endedAtIso, sessionId],
+          [
+            _sessionOutcomeToSql(outcome),
+            endedAt.toUtc().toIso8601String(),
+            sessionId,
+          ],
         );
-
-        if (outcome == SessionOutcome.completed) {
-          await tx.execute(
-            '''
-            UPDATE $dailyActivitySummaryTable
-            SET ended_focus_count = ended_focus_count + ?,
-                ended_break_count = ended_break_count + ?,
-                updated_at = ?
-            WHERE day_key = ?
-            ''',
-            [
-              existingSession.type == SessionType.focus ? 1 : 0,
-              existingSession.type == SessionType.breakTime ? 1 : 0,
-              endedAtIso,
-              existingSession.dayKey,
-            ],
-          );
-        }
+        await _writeDailySummary(tx, nextSummary);
       });
 
       final row = await _database.get(
@@ -257,8 +261,20 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
   }) async {
     final id = _uuid.v4();
     try {
-      final occurredAtIso = occurredAt.toUtc().toIso8601String();
-      await loadOrCreateDailySummary(dayKey: dayKey, openedAt: occurredAt);
+      final event = WellnessEvent(
+        id: id,
+        dayKey: dayKey,
+        type: type,
+        occurredAt: occurredAt.toUtc(),
+      );
+      final summary = await loadOrCreateDailySummary(
+        dayKey: dayKey,
+        openedAt: occurredAt,
+      );
+      final nextSummary = _dailySummaryService.applyWellnessEvent(
+        summary: summary,
+        event: event,
+      );
 
       await _database.writeTransaction((tx) async {
         await tx.execute(
@@ -266,34 +282,14 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
           INSERT INTO $wellnessEventsTable (id, day_key, type, occurred_at)
           VALUES (?, ?, ?, ?)
           ''',
-          [id, dayKey, _wellnessTypeToSql(type), occurredAtIso],
+          [
+            id,
+            dayKey,
+            _wellnessTypeToSql(type),
+            occurredAt.toUtc().toIso8601String(),
+          ],
         );
-
-        if (type == WellnessEventType.hydration) {
-          await tx.execute(
-            '''
-            UPDATE $dailyActivitySummaryTable
-            SET hydration_count = hydration_count + 1,
-                last_hydration_at = ?,
-                hydration_timer_anchor_at = ?,
-                hydration_reminder_active = 0,
-                updated_at = ?
-            WHERE day_key = ?
-            ''',
-            [occurredAtIso, occurredAtIso, occurredAtIso, dayKey],
-          );
-          return;
-        }
-
-        await tx.execute(
-          '''
-          UPDATE $dailyActivitySummaryTable
-          SET movement_count = movement_count + 1,
-              updated_at = ?
-          WHERE day_key = ?
-          ''',
-          [occurredAtIso, dayKey],
-        );
+        await _writeDailySummary(tx, nextSummary);
       });
 
       final row = await _database.get(
@@ -338,8 +334,11 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
         return _dailySummaryFromRow(existing);
       }
 
-      final id = _dailySummaryId(dayKey);
-      final nowIso = openedAt.toUtc().toIso8601String();
+      final created = _dailySummaryService.create(
+        id: _dailySummaryId(dayKey),
+        dayKey: dayKey,
+        openedAt: openedAt,
+      );
       await _database.execute(
         '''
         INSERT INTO $dailyActivitySummaryTable (
@@ -348,13 +347,14 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
           hydration_reminder_active, updated_at
         ) VALUES (?, ?, 0, 0, 0, 0, NULL, ?, 0, ?)
         ''',
-        [id, dayKey, nowIso, nowIso],
+        [
+          created.id,
+          created.dayKey,
+          created.hydrationTimerAnchorAt.toIso8601String(),
+          created.updatedAt.toIso8601String(),
+        ],
       );
-      final created = await _database.get(
-        'SELECT * FROM $dailyActivitySummaryTable WHERE id = ?',
-        [id],
-      );
-      return _dailySummaryFromRow(created);
+      return created;
     } catch (error, stackTrace) {
       throw PomodoroPersistenceFailure(
         'Failed to load or create daily summary',
@@ -370,7 +370,26 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
     required DateTime now,
   }) async {
     try {
-      return loadOrCreateDailySummary(dayKey: dayKey, openedAt: now);
+      final existingSummary = await loadOrCreateDailySummary(
+        dayKey: dayKey,
+        openedAt: now,
+      );
+      final sessionRows = await _database.getAll(
+        'SELECT * FROM $sessionsTable WHERE day_key = ?',
+        [dayKey],
+      );
+      final eventRows = await _database.getAll(
+        'SELECT * FROM $wellnessEventsTable WHERE day_key = ?',
+        [dayKey],
+      );
+      final refreshedSummary = _dailySummaryService.aggregate(
+        summary: existingSummary,
+        sessions: sessionRows.map(_sessionFromRow),
+        wellnessEvents: eventRows.map(_wellnessFromRow),
+        now: now,
+      );
+      await _writeDailySummary(_database, refreshedSummary);
+      return refreshedSummary;
     } catch (error, stackTrace) {
       throw PomodoroPersistenceFailure(
         'Failed to refresh daily summary',
@@ -584,5 +603,36 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
     }
 
     return '$userId:$dayKey';
+  }
+
+  Future<void> _writeDailySummary(
+    dynamic executor,
+    DailyActivitySummary summary,
+  ) async {
+    await executor.execute(
+      '''
+      UPDATE $dailyActivitySummaryTable
+      SET ended_focus_count = ?,
+          ended_break_count = ?,
+          hydration_count = ?,
+          movement_count = ?,
+          last_hydration_at = ?,
+          hydration_timer_anchor_at = ?,
+          hydration_reminder_active = ?,
+          updated_at = ?
+      WHERE day_key = ?
+      ''',
+      [
+        summary.endedFocusCount,
+        summary.endedBreakCount,
+        summary.hydrationCount,
+        summary.movementCount,
+        summary.lastHydrationAt?.toIso8601String(),
+        summary.hydrationTimerAnchorAt.toIso8601String(),
+        summary.hydrationReminderActive ? 1 : 0,
+        summary.updatedAt.toIso8601String(),
+        summary.dayKey,
+      ],
+    );
   }
 }

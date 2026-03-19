@@ -38,7 +38,11 @@ npm-debug.log*
 
 # Misc
 .DS_Store
+Thumbs.db
 .idea
+.vscode/
+*.tmp
+*.swp
 *.pem
 
 # log files
