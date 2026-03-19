@@ -35,8 +35,8 @@ class TimerHeader extends StatelessWidget {
       PomodoroScreenStatus.focusPaused => 'Focus paused',
       PomodoroScreenStatus.breakActive => 'Break session',
       PomodoroScreenStatus.breakPaused => 'Break paused',
-      PomodoroScreenStatus.focusCompleted => 'Focus complete',
-      PomodoroScreenStatus.breakCompleted => 'Break complete',
+      PomodoroScreenStatus.focusCompleted => 'Focus complete 🎉',
+      PomodoroScreenStatus.breakCompleted => 'Break complete 🎉',
       PomodoroScreenStatus.loading => 'Loading',
       PomodoroScreenStatus.error => 'Session error',
       PomodoroScreenStatus.idle => 'Ready to focus',
@@ -45,9 +45,10 @@ class TimerHeader extends StatelessWidget {
 
   int _defaultForStatus(PomodoroScreenStatus status) {
     return switch (status) {
+      PomodoroScreenStatus.focusCompleted => 0,
       PomodoroScreenStatus.breakActive ||
-      PomodoroScreenStatus.breakPaused ||
-      PomodoroScreenStatus.breakCompleted => 10 * 60,
+      PomodoroScreenStatus.breakPaused => 10 * 60,
+      PomodoroScreenStatus.breakCompleted => 0,
       _ => 40 * 60,
     };
   }

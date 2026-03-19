@@ -87,6 +87,32 @@ class SessionActionBar extends StatelessWidget {
       );
     }
 
+    if (status == PomodoroScreenStatus.focusCompleted) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          width: _actionGroupWidth,
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: controller.startBreakSession,
+                  child: const Text('Start break'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: controller.resetCompletionPrompt,
+                  child: const Text('Reset'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (status == PomodoroScreenStatus.breakCompleted) {
       return Align(
         alignment: Alignment.centerLeft,

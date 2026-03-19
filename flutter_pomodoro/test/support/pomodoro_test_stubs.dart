@@ -74,6 +74,10 @@ class InMemoryPomodoroRepository implements PomodoroRepository {
     _emitActiveSession();
   }
 
+  int eventCountFor(WellnessEventType type) {
+    return _events.where((event) => event.type == type).length;
+  }
+
   @override
   Future<SessionRecord?> loadActiveSession() async {
     return _currentActiveSession();

@@ -39,6 +39,7 @@ class PomodoroController extends ChangeNotifier {
   Timer? _ticker;
   PomodoroScreenStatus? _completionStatus;
   late String _todayDayKey;
+  final Set<WellnessEventType> _pendingWellnessLogs = <WellnessEventType>{};
 
   Future<void> initialize() async {
     _stopTicker();
@@ -334,11 +335,20 @@ class PomodoroController extends ChangeNotifier {
   }
 
   Future<void> _logWellnessEvent(WellnessEventType type) async {
-    await _repository.addWellnessEvent(
-      type: type,
-      occurredAt: _clock.now(),
-      dayKey: _todayDayKey,
-    );
+    if (_pendingWellnessLogs.contains(type)) {
+      return;
+    }
+
+    _pendingWellnessLogs.add(type);
+    try {
+      await _repository.addWellnessEvent(
+        type: type,
+        occurredAt: _clock.now(),
+        dayKey: _todayDayKey,
+      );
+    } finally {
+      _pendingWellnessLogs.remove(type);
+    }
   }
 
   void _syncTickerForState() {

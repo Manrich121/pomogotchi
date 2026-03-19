@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_controller.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_view_state.dart';
-import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/completion_prompt.dart';
 import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/daily_summary_panel.dart';
 import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/session_action_bar.dart';
 import 'package:flutter_pomodoro/features/pomodoro/presentation/widgets/timer_header.dart';
@@ -62,8 +61,6 @@ class PomodoroScreen extends StatelessWidget {
                       ),
                 const SizedBox(height: 16),
                 SessionActionBar(status: state.status, controller: controller),
-                const SizedBox(height: 16),
-                CompletionPrompt(status: state.status, controller: controller),
                 const SizedBox(height: 16),
                 if (state.dailySummary != null && showInteractiveContent) ...[
                   DailySummaryPanel(summary: state.dailySummary!),

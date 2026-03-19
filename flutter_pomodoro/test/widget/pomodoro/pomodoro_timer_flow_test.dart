@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_pomodoro/features/pomodoro/application/pomodoro_controller.dart';
 import 'package:flutter_pomodoro/features/pomodoro/domain/models/session_record.dart';
+import 'package:flutter_pomodoro/features/pomodoro/domain/models/wellness_event.dart';
 import 'package:flutter_pomodoro/features/pomodoro/presentation/screens/pomodoro_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -79,6 +80,10 @@ void main() {
 
     expect(find.text('Focus complete 🎉'), findsOneWidget);
     expect(find.text('Start break'), findsOneWidget);
+    expect(
+      find.text('Break completed. Ready for the next focus session.'),
+      findsNothing,
+    );
 
     await tester.tap(find.text('Start break'));
     await tester.pump();
@@ -120,9 +125,39 @@ void main() {
     await pumpScreen(tester);
     await tester.pump();
 
-    expect(find.textContaining('Break completed'), findsOneWidget);
+    expect(find.text('Break complete 🎉'), findsOneWidget);
     expect(find.text('Back to idle'), findsOneWidget);
+    expect(
+      find.text('Break completed. Ready for the next focus session.'),
+      findsNothing,
+    );
   });
+
+  testWidgets(
+    'wellness log buttons show confirmation and debounce repeat taps',
+    (tester) async {
+      await pumpScreen(tester);
+
+      final hydrationButton = find.byKey(const Key('wellness-log-hydration'));
+
+      await tester.tap(hydrationButton);
+      await tester.pump();
+
+      expect(repository.eventCountFor(WellnessEventType.hydration), 1);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+
+      await tester.tap(hydrationButton);
+      await tester.pump();
+
+      expect(repository.eventCountFor(WellnessEventType.hydration), 1);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.tap(hydrationButton);
+      await tester.pump();
+
+      expect(repository.eventCountFor(WellnessEventType.hydration), 2);
+    },
+  );
 
   testWidgets('golden idle state', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
