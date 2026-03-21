@@ -14,7 +14,7 @@ abstract class NarrativeAgent {
 class CactusNarrativeAgent implements NarrativeAgent {
   CactusNarrativeAgent({
     CactusLM? lm,
-    this.model = 'lfm2-1.2b-tool',
+    this.model = 'lfm2-1.2b',
     this.contextSize = 4096,
     this.completionMode = CompletionMode.local,
     this.cactusToken,
@@ -29,27 +29,9 @@ class CactusNarrativeAgent implements NarrativeAgent {
   final int contextSize;
   final CompletionMode completionMode;
   final String? cactusToken;
-  final CactusTool _submitPetBioTool = CactusTool(
-    name: 'submit_pet_bio',
-    description: 'Submit the hidden pet bio for this focus companion session.',
-    parameters: ToolParametersSchema(
-      properties: {
-        'name': ToolParameter(
-          type: 'string',
-          description: 'A one-word pet name.',
-          required: true,
-        ),
-        'summary': ToolParameter(
-          type: 'string',
-          description:
-              'A brief summary describing the specific animal personality or vibe.',
-          required: true,
-        ),
-      },
-    ),
-  );
 
   bool _isInitialized = false;
+  String? _lastDownloadLogLine;
 
   @override
   Future<PetBio> generateBio(AnimalSpec animalSpec) async {
@@ -69,7 +51,6 @@ class CactusNarrativeAgent implements NarrativeAgent {
             maxTokens: 120,
             temperature: 0.3,
             topP: 0.8,
-            tools: [_submitPetBioTool],
             completionMode: completionMode,
             cactusToken: cactusToken,
           ),
@@ -82,10 +63,7 @@ class CactusNarrativeAgent implements NarrativeAgent {
         debugPrint(
           'Narrative agent raw response (attempt ${attempt + 1}): ${result.response}',
         );
-        debugPrint(
-          'Narrative agent tool calls (attempt ${attempt + 1}): ${result.toolCalls.map((call) => '${call.name} ${call.arguments}').join(' | ')}',
-        );
-        return _parseBioFromToolCall(result);
+        return _parseBioFromResponse(result.response);
       } catch (error) {
         debugPrint(
           'Narrative agent bio generation failed on attempt ${attempt + 1}: $error',
@@ -102,22 +80,55 @@ class CactusNarrativeAgent implements NarrativeAgent {
       return;
     }
 
+    await _lm.downloadModel(
+      model: model,
+      downloadProcessCallback: _logDownloadProgress,
+    );
     await _lm.initializeModel(
       params: CactusInitParams(model: model, contextSize: contextSize),
     );
     _isInitialized = true;
   }
 
-  PetBio _parseBioFromToolCall(CactusCompletionResult result) {
-    final toolCall = _extractToolCall(result);
-    if (toolCall == null) {
+  void _logDownloadProgress(double? progress, String status, bool isError) {
+    final percentage = progress == null
+        ? ''
+        : ' (${(progress * 100).toStringAsFixed(1)}%)';
+    final message = 'Narrative agent model download: $status$percentage';
+
+    if (_lastDownloadLogLine == message) {
+      return;
+    }
+    _lastDownloadLogLine = message;
+
+    if (isError) {
+      debugPrint('ERROR: $message');
+      return;
+    }
+
+    debugPrint(message);
+  }
+
+  PetBio _parseBioFromResponse(String rawResponse) {
+    final cleanedResponse = _stripThinking(rawResponse);
+    final extractedObject = _extractJsonObject(cleanedResponse);
+    if (extractedObject == null) {
+      final fallbackBio = _parseBioFromLabeledText(cleanedResponse);
+      if (fallbackBio != null) {
+        return fallbackBio;
+      }
       throw const FormatException(
-        'Narrative response did not include a tool call.',
+        'Narrative response did not include JSON or labeled fields.',
       );
     }
 
-    final name = (toolCall.arguments['name'] ?? '').trim();
-    final summary = (toolCall.arguments['summary'] ?? '').trim();
+    final decoded = jsonDecode(extractedObject);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Narrative response JSON was not an object.');
+    }
+
+    final name = (decoded['name'] ?? '').toString().trim();
+    final summary = (decoded['summary'] ?? '').toString().trim();
 
     if (name.isEmpty || name.contains(RegExp(r'\s'))) {
       throw const FormatException(
@@ -134,93 +145,29 @@ class CactusNarrativeAgent implements NarrativeAgent {
     return PetBio(name: name, summary: summary);
   }
 
-  ToolCall? _extractToolCall(CactusCompletionResult result) {
-    final directMatch = result.toolCalls.where(
-      (call) => call.name == _submitPetBioTool.name,
-    );
-    if (directMatch.isNotEmpty) {
-      return directMatch.last;
-    }
+  PetBio? _parseBioFromLabeledText(String rawResponse) {
+    final nameMatch = RegExp(
+      r'^\s*name\s*:\s*(.+)$',
+      caseSensitive: false,
+      multiLine: true,
+    ).firstMatch(rawResponse);
+    final summaryMatch = RegExp(
+      r'^\s*summary\s*:\s*(.+)$',
+      caseSensitive: false,
+      multiLine: true,
+    ).firstMatch(rawResponse);
 
-    final rawToolCall = _extractToolCallFromRawResponse(
-      result.response,
-      _submitPetBioTool.name,
-    );
-    if (rawToolCall != null) {
-      debugPrint('Narrative agent recovered tool call from raw response.');
-    }
-
-    return rawToolCall;
-  }
-
-  ToolCall? _extractToolCallFromRawResponse(
-    String rawResponse,
-    String toolName,
-  ) {
-    final extractedObject = _extractJsonObject(rawResponse);
-    if (extractedObject == null) {
+    if (nameMatch == null || summaryMatch == null) {
       return null;
     }
 
-    try {
-      final decoded = jsonDecode(extractedObject);
-      if (decoded is! Map<String, dynamic>) {
-        return null;
-      }
-
-      final functionCall = decoded['function_call'];
-      if (functionCall is Map<String, dynamic>) {
-        final parsed = _toolCallFromMap(functionCall, toolName);
-        if (parsed != null) {
-          return parsed;
-        }
-      }
-
-      final functionCalls = decoded['function_calls'];
-      if (functionCalls is List) {
-        for (final item in functionCalls) {
-          if (item is Map<String, dynamic>) {
-            final parsed = _toolCallFromMap(item, toolName);
-            if (parsed != null) {
-              return parsed;
-            }
-          }
-        }
-      }
-
-      if (decoded.containsKey('name') && decoded.containsKey('summary')) {
-        return ToolCall(
-          name: toolName,
-          arguments: {
-            'name': decoded['name'].toString(),
-            'summary': decoded['summary'].toString(),
-          },
-        );
-      }
-    } catch (_) {
+    final name = nameMatch.group(1)?.trim() ?? '';
+    final summary = summaryMatch.group(1)?.trim() ?? '';
+    if (name.isEmpty || summary.isEmpty || name.contains(RegExp(r'\s'))) {
       return null;
     }
 
-    return null;
-  }
-
-  ToolCall? _toolCallFromMap(Map<String, dynamic> value, String toolName) {
-    final name = value['name']?.toString();
-    if (name != toolName) {
-      return null;
-    }
-
-    final arguments = value['arguments'];
-    if (arguments is Map<String, dynamic>) {
-      return ToolCall(
-        name: name!,
-        arguments: arguments.map(
-          (key, value) => MapEntry(key, value.toString()),
-        ),
-      );
-    }
-
-    return null;
+    return PetBio(name: name, summary: summary);
   }
 
   String? _extractJsonObject(String rawResponse) {
@@ -246,6 +193,15 @@ class CactusNarrativeAgent implements NarrativeAgent {
     return trimmed.substring(objectStart, objectEnd + 1);
   }
 
+  String _stripThinking(String rawResponse) {
+    return rawResponse
+        .replaceAll(
+          RegExp(r'<think>[\s\S]*?</think>', caseSensitive: false),
+          '',
+        )
+        .trim();
+  }
+
   @override
   void dispose() {
     _lm.unload();
@@ -253,18 +209,39 @@ class CactusNarrativeAgent implements NarrativeAgent {
 }
 
 String _buildSystemPrompt() {
-  return 'You generate hidden pet bios for a focus companion app. '
-      'You must respond by calling the submit_pet_bio tool exactly once. '
-      'Never answer directly in plain text. '
-      'Any output outside the tool call is invalid and will be discarded. '
-      'Do not return JSON or natural-language prose outside the tool call. '
-      'The pet name must be single word and may not just be the animal species. '
-      'The summary must briefly describe the specific animal\'s personality or vibe.';
+  return '''
+Role: You create hidden pet bios for a focus companion app.
+
+Task:
+- Invent one cute pet name.
+- Invent one short personality summary.
+
+Rules:
+- The name must be one word.
+- The name must not be the animal species.
+- The summary must be 8 to 16 words.
+- The summary should describe temperament, voice, and affection style.
+- Keep the personality warm, playful, and suitable for a cozy focus companion.
+- Use English only.
+- Do not output <think> tags.
+- Do not explain your reasoning.
+- Answer with the final output immediately.
+
+Output:
+- Return JSON only.
+- Use exactly this shape: {"name":"...", "summary":"..."}
+- Do not add markdown, code fences, or extra text.
+- If JSON fails, return exactly:
+  NAME: one-word-name
+  SUMMARY: short summary
+''';
 }
 
-
 String _buildPrompt(AnimalSpec animalSpec) {
-  return 'Animal species: ${animalSpec.displayName}\n'
-      'Only valid output: call submit_pet_bio with a one-word name and a short summary.\n'
-      'Any direct text response is invalid.';
+  return '''
+Animal species: ${animalSpec.displayName}
+
+Create one hidden pet bio for this animal.
+Return JSON only.
+''';
 }

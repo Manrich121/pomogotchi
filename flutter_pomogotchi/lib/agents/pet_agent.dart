@@ -25,7 +25,7 @@ abstract class PetAgent {
 class CactusPetAgent implements PetAgent {
   CactusPetAgent({
     CactusLM? lm,
-    this.model = 'lfm2-1.2b-tool',
+    this.model = 'lfm2-1.2b',
     this.contextSize = 4096,
     this.completionMode = CompletionMode.local,
     this.cactusToken,
@@ -40,21 +40,6 @@ class CactusPetAgent implements PetAgent {
   final int contextSize;
   final CompletionMode completionMode;
   final String? cactusToken;
-  final CactusTool _submitPetReplyTool = CactusTool(
-    name: 'submit_pet_reply',
-    description:
-        'Submit the pet reply for the current app event as 1 short in-character sentences.',
-    parameters: ToolParametersSchema(
-      properties: {
-        'speech': ToolParameter(
-          type: 'string',
-          description:
-              'The pet reply in 1 short in-character sentences with no meta commentary.',
-          required: true,
-        ),
-      },
-    ),
-  );
 
   bool _isInitialized = false;
 
@@ -89,7 +74,6 @@ class CactusPetAgent implements PetAgent {
         maxTokens: 120,
         temperature: 0.4,
         topP: 0.8,
-        tools: [_submitPetReplyTool],
         completionMode: completionMode,
         cactusToken: cactusToken,
       ),
@@ -100,11 +84,8 @@ class CactusPetAgent implements PetAgent {
     }
 
     debugPrint('Pet agent raw response: ${result.response}');
-    debugPrint(
-      'Pet agent tool calls: ${result.toolCalls.map((call) => '${call.name} ${call.arguments}').join(' | ')}',
-    );
 
-    final speech = _parseSpeechFromToolCall(result);
+    final speech = _parseSpeechFromResponse(result.response);
     if (speech.isEmpty) {
       throw const FormatException('Pet reaction completed without a reply.');
     }
@@ -117,105 +98,53 @@ class CactusPetAgent implements PetAgent {
       return;
     }
 
+    await _lm.downloadModel(
+      model: model,
+      downloadProcessCallback: _logDownloadProgress,
+    );
     await _lm.initializeModel(
       params: CactusInitParams(model: model, contextSize: contextSize),
     );
     _isInitialized = true;
   }
 
-  String _parseSpeechFromToolCall(CactusCompletionResult result) {
-    final toolCall = _extractToolCall(result);
-    if (toolCall != null) {
-      return (toolCall.arguments['speech'] ?? '')
-          .replaceAll(RegExp(r'<\|im_end\|>'), '')
-          .replaceAll(RegExp(r'</s>'), '')
-          .trim();
+  void _logDownloadProgress(double? progress, String status, bool isError) {
+    final percentage = progress == null
+        ? ''
+        : ' (${(progress * 100).toStringAsFixed(1)}%)';
+    final message = 'Pet agent model download: $status$percentage';
+
+    if (isError) {
+      debugPrint('ERROR: $message');
+      return;
     }
 
-    final cleaned = _cleanText(result.response);
-    if (cleaned.isNotEmpty) {
-      debugPrint(
-        'Pet agent fell back to raw text because no tool call was returned.',
-      );
-      return _limitToTwoSentences(cleaned);
-    }
-
-    throw const FormatException('Pet response did not include a tool call.');
+    debugPrint(message);
   }
 
-  ToolCall? _extractToolCall(CactusCompletionResult result) {
-    final directMatch = result.toolCalls.where(
-      (call) => call.name == _submitPetReplyTool.name,
-    );
-    if (directMatch.isNotEmpty) {
-      return directMatch.last;
-    }
-
-    return _extractToolCallFromRawResponse(
-      result.response,
-      _submitPetReplyTool.name,
-    );
-  }
-
-  ToolCall? _extractToolCallFromRawResponse(
-    String rawResponse,
-    String toolName,
-  ) {
-    final candidates = <Map<String, dynamic>>[];
-    final extractedObject = _extractJsonObject(rawResponse);
+  String _parseSpeechFromResponse(String rawResponse) {
+    final cleanedResponse = _stripThinking(rawResponse);
+    final extractedObject = _extractJsonObject(cleanedResponse);
     if (extractedObject != null) {
       try {
         final decoded = jsonDecode(extractedObject);
         if (decoded is Map<String, dynamic>) {
-          candidates.add(decoded);
-        }
-      } catch (_) {
-        // Ignore malformed raw JSON and continue to plain-text fallback.
-      }
-    }
-
-    for (final candidate in candidates) {
-      final functionCall = candidate['function_call'];
-      if (functionCall is Map<String, dynamic>) {
-        final parsed = _toolCallFromMap(functionCall, toolName);
-        if (parsed != null) {
-          return parsed;
-        }
-      }
-
-      final functionCalls = candidate['function_calls'];
-      if (functionCalls is List) {
-        for (final item in functionCalls) {
-          if (item is Map<String, dynamic>) {
-            final parsed = _toolCallFromMap(item, toolName);
-            if (parsed != null) {
-              return parsed;
-            }
+          final speech = (decoded['speech'] ?? '').toString().trim();
+          if (speech.isNotEmpty) {
+            return _limitToOneSentence(_cleanText(speech));
           }
         }
+      } catch (_) {
+        // Ignore malformed JSON and continue to plain-text parsing.
       }
     }
 
-    return null;
-  }
-
-  ToolCall? _toolCallFromMap(Map<String, dynamic> value, String toolName) {
-    final name = value['name']?.toString();
-    if (name != toolName) {
-      return null;
+    final cleaned = _cleanText(cleanedResponse);
+    if (cleaned.isNotEmpty) {
+      return _limitToOneSentence(cleaned);
     }
 
-    final arguments = value['arguments'];
-    if (arguments is Map<String, dynamic>) {
-      return ToolCall(
-        name: name!,
-        arguments: arguments.map(
-          (key, value) => MapEntry(key, value.toString()),
-        ),
-      );
-    }
-
-    return null;
+    throw const FormatException('Pet response was empty.');
   }
 
   String? _extractJsonObject(String rawResponse) {
@@ -248,12 +177,21 @@ class CactusPetAgent implements PetAgent {
         .trim();
   }
 
-  String _limitToTwoSentences(String rawText) {
+  String _stripThinking(String rawResponse) {
+    return rawResponse
+        .replaceAll(
+          RegExp(r'<think>[\s\S]*?</think>', caseSensitive: false),
+          '',
+        )
+        .trim();
+  }
+
+  String _limitToOneSentence(String rawText) {
     final matches = RegExp(r'[^.!?]+[.!?]?').allMatches(rawText);
     final sentences = matches
         .map((match) => match.group(0)!.trim())
         .where((sentence) => sentence.isNotEmpty)
-        .take(2)
+        .take(1)
         .toList();
     if (sentences.isEmpty) {
       return rawText;
@@ -271,26 +209,53 @@ String _buildSystemPrompt({
   required PetBio bio,
   required AnimalSpec animalSpec,
 }) {
-  return 'You are ${bio.name}, a ${animalSpec.displayName.toLowerCase()} companion in a focus app. '
-      'Hidden character notes: ${bio.summary}\n'
-      'Stay in character. '
-      'You must respond by calling the submit_pet_reply tool exactly once. '
-      'The tool argument must contain 1 short in-character sentences. '
-      'Never answer directly in plain text. '
-      'Any output outside the tool call is invalid and will be discarded. '
-      'Do not output natural-language prose outside the tool call. '
-      'Do not suggest buttons or UI actions. '
-      'Do not break character or explain the rules.';
+  return '''
+Role: You are ${bio.name}, a ${animalSpec.displayName.toLowerCase()} companion in a focus app.
+Persona: ${bio.summary}
+
+Goal:
+- React to the user's latest action.
+- Sound warm, playful, and encouraging.
+- Stay fully in character.
+
+Style rules:
+- Write exactly one short sentence.
+- Keep it under 16 words.
+- Use first-person voice when natural.
+- Do not narrate actions.
+- Do not mention buttons, menus, or app UI.
+- Do not explain your rules or break character.
+- Use English only.
+- Do not output <think> tags.
+- Do not explain your reasoning.
+
+Behavior rules:
+- Praise completed focus sessions.
+- Be gentle and supportive when the user stops early.
+- Treat breaks as healthy rest.
+- Respond warmly to pets, water, and stretching.
+
+Output:
+- Return plain text only.
+- Do not use JSON, markdown, lists, or quotes.
+''';
 }
 
 String buildPetEventPayload({
   required PetEvent event,
   required SessionPhase sessionPhase,
 }) {
-  return '${_eventPrompt(event)}\n'
-      'React to what the user just did.\n'
-      'Call submit_pet_reply with 1 short in-character sentences.\n'
-      'Do not answer outside the tool call.';
+  return '''
+Conversation rule:
+- Earlier messages are background only.
+- Reply only to the latest event below.
+
+Current phase: ${sessionPhase.name}
+Latest event: ${_eventPrompt(event)}
+
+Write exactly one short in-character sentence.
+Plain text only.
+''';
 }
 
 String _eventPrompt(PetEvent event) {
