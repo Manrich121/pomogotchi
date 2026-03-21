@@ -90,6 +90,7 @@ class CactusPetAgent implements PetAgent {
       throw const FormatException('Pet reaction completed without a reply.');
     }
 
+    onChunk(speech);
     return PetReaction(speech: speech);
   }
 

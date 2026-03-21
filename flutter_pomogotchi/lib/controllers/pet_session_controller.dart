@@ -131,8 +131,13 @@ class PetSessionController extends ChangeNotifier {
       }
 
       debugPrint('Pomogotchi reaction failed for ${event.wireValue}: $error');
+      final updatedTranscript =
+          List<PetTranscriptEntry>.of(currentSession.transcript)
+            ..add(PetTranscriptEntry.user(eventPayload));
       _setSession(
         currentSession.copyWith(
+          phase: nextPhase,
+          transcript: updatedTranscript,
           isThinking: false,
           isStreaming: false,
           pendingSpeech: '',
