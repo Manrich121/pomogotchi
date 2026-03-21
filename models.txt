@@ -1,0 +1,21 @@
+Available models: functiongemma-270m
+lfm2-1.2b-tool
+gemma3-270m
+qwen3-0.6
+qwen3-0.6-embed
+qwen3-1.7
+lfm2-1.2b
+lfm2-vl-450m
+lfm2-vl-1.6b
+nomic2-embed-300m
+gemma3-1b
+smollm2-360m
+lfm2-350m
+lfm2-700m
+gemma3-1b-pro
+lfm2-vl-450m-pro
+gemma3-270m-pro
+qwen3-0.6-pro
+qwen3-1.7-pro
+lfm2-vl-1.6b-pro
+functiongemma-270m-pro
