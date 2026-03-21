@@ -43,26 +43,47 @@ class _PomogotchiHomeState extends State<PomogotchiHome> {
 
   PetSessionController _buildController() {
     const cactusToken = String.fromEnvironment('CACTUS_TOKEN');
-    const cactusModel = String.fromEnvironment(
-      'CACTUS_MODEL',
-      defaultValue: 'qwen3-0.6',
+    const cactusModel = String.fromEnvironment('CACTUS_MODEL');
+    const cactusNarrativeModel = String.fromEnvironment(
+      'CACTUS_NARRATIVE_MODEL',
     );
+    const cactusPetModel = String.fromEnvironment('CACTUS_PET_MODEL');
     final token = cactusToken.isEmpty ? null : cactusToken;
+    final sharedModelOverride = cactusModel.isEmpty ? null : cactusModel;
+    final narrativeModelOverride = cactusNarrativeModel.isEmpty
+        ? sharedModelOverride
+        : cactusNarrativeModel;
+    final petModelOverride = cactusPetModel.isEmpty
+        ? sharedModelOverride
+        : cactusPetModel;
     final completionMode = token == null
         ? CompletionMode.local
         : CompletionMode.hybrid;
+    final narrativeAgent = narrativeModelOverride == null
+        ? CactusNarrativeAgent(
+            completionMode: completionMode,
+            cactusToken: token,
+          )
+        : CactusNarrativeAgent(
+            model: narrativeModelOverride,
+            completionMode: completionMode,
+            cactusToken: token,
+          );
+    final petAgent = petModelOverride == null
+        ? CactusPetAgent(completionMode: completionMode, cactusToken: token)
+        : CactusPetAgent(
+            model: petModelOverride,
+            completionMode: completionMode,
+            cactusToken: token,
+          );
+
+    debugPrint(
+      'Pomogotchi model selection: narrative=${narrativeModelOverride ?? narrativeAgent.model}, pet=${petModelOverride ?? petAgent.model}',
+    );
 
     return PetSessionController(
-      narrativeAgent: CactusNarrativeAgent(
-        model: cactusModel,
-        completionMode: completionMode,
-        cactusToken: token,
-      ),
-      petAgent: CactusPetAgent(
-        model: cactusModel,
-        completionMode: completionMode,
-        cactusToken: token,
-      ),
+      narrativeAgent: narrativeAgent,
+      petAgent: petAgent,
       animalLoader: () => discoverAnimalSpecs(rootBundle),
       random: Random(),
     );
@@ -299,7 +320,7 @@ class _PetStage extends StatelessWidget {
           child: session.animal == null
               ? const _EmptyPetStage()
               : Transform.translate(
-                  offset: const Offset(0, 50),
+                  offset: const Offset(0, -50),
                   child: _StageImage(
                     assetPath: session.animal!.artAssetPath,
                     width: 185,
