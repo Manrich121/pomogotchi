@@ -107,8 +107,7 @@ class CactusNarrativeAgent implements NarrativeAgent {
   }
 
   String get _systemPrompt {
-    return '/no_think\n'
-        'You generate hidden pet bios for a focus companion app. '
+    return 'You generate hidden pet bios for a focus companion app. '
         'You must respond by calling the submit_pet_bio tool exactly once. '
         'Do not return JSON or natural-language prose outside the tool call. '
         'The name must be a single word. '

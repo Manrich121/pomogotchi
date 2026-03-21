@@ -118,10 +118,6 @@ class _PomogotchiHomeState extends State<PomogotchiHome> {
                                 _TopActionRow(controller: _controller),
                                 const SizedBox(height: 18),
                                 _SessionHeader(session: session),
-                                if (session.errorMessage != null) ...[
-                                  const SizedBox(height: 12),
-                                  _ErrorBanner(message: session.errorMessage!),
-                                ],
                                 const SizedBox(height: 18),
                                 _SpeechBubble(
                                   speech: _displayedSpeech(session),
@@ -136,6 +132,10 @@ class _PomogotchiHomeState extends State<PomogotchiHome> {
                                     controller: _controller,
                                   ),
                                 ),
+                                if (session.errorMessage != null) ...[
+                                  const SizedBox(height: 12),
+                                  _ErrorBanner(message: session.errorMessage!),
+                                ],
                                 const SizedBox(height: 12),
                                 _TestPanel(controller: _controller),
                               ],
@@ -268,17 +268,17 @@ class _SpeechBubble extends StatelessWidget {
             ),
           ),
         ),
-        if (isPending)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: Text(
-              'Reply in progress',
-              style: TextStyle(
-                color: Color(0xFF6A5B52),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+        // if (isPending)
+        //   const Padding(
+        //     padding: EdgeInsets.only(top: 8),
+        //     child: Text(
+        //       'Reply in progress',
+        //       style: TextStyle(
+        //         color: Color(0xFF6A5B52),
+        //         fontWeight: FontWeight.w700,
+        //       ),
+        //     ),
+        //   ),
       ],
     );
   }
@@ -295,11 +295,11 @@ class _PetStage extends StatelessWidget {
     return Stack(
       children: [
         Align(
-          alignment: Alignment.bottomCenter,
+          alignment: Alignment.topCenter,
           child: session.animal == null
               ? const _EmptyPetStage()
               : Transform.translate(
-                  offset: const Offset(0, -10),
+                  offset: const Offset(0, 50),
                   child: _StageImage(
                     assetPath: session.animal!.artAssetPath,
                     width: 185,
@@ -308,7 +308,7 @@ class _PetStage extends StatelessWidget {
         ),
         Positioned(
           left: 0,
-          bottom: 12,
+          top: 0,
           child: _HeartButton(
             enabled: controller.canDispatch(PetEvent.petPet),
             onPressed: () => controller.dispatch(PetEvent.petPet),

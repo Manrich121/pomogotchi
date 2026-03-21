@@ -8,7 +8,6 @@
 
 ## Product Direction
 - Keep the published `cactus` dependency and current model split unless implementation proves they need to change.
-- Prefix the system prompt for both models with `/no_think` so responses contain only the requested output.
 - Remove the prior tool-calling interaction design. In this PoC, the pet agent does not generate buttons, choices, or tool calls.
 - Simplify the bio to strict structured output parsed into `PetBio { name, summary }`.
 - Require the narrative prompt to return:
