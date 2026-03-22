@@ -1,242 +1,175 @@
-import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:pomogotchi/agents/narrative_agent.dart';
-import 'package:pomogotchi/agents/pet_agent.dart';
-import 'package:pomogotchi/models/animal_spec.dart';
+import 'package:pomogotchi/features/pet/data/pet_sync_repository.dart';
+import 'package:pomogotchi/models/pet_bio.dart';
 import 'package:pomogotchi/models/pet_event.dart';
 import 'package:pomogotchi/models/pet_reaction.dart';
 import 'package:pomogotchi/models/pet_session.dart';
 import 'package:pomogotchi/models/pet_transcript_entry.dart';
 import 'package:pomogotchi/models/session_phase.dart';
 
-class PetSessionController extends ChangeNotifier {
-  PetSessionController({
-    required this.narrativeAgent,
-    required this.petAgent,
-    required this.animalLoader,
-    Random? random,
-  }) : random = random ?? Random();
+abstract class PetSessionController extends ChangeNotifier {
+  PetSession get session;
 
-  final NarrativeAgent narrativeAgent;
-  final PetAgent petAgent;
-  final Future<List<AnimalSpec>> Function() animalLoader;
-  final Random random;
+  Future<void> bootstrap();
 
-  PetSession _session = PetSession.initial();
-  int _operationId = 0;
-  bool _isDisposed = false;
+  Future<void> reset();
 
-  PetSession get session => _session;
-
-  Future<void> bootstrap() async {
-    await _startNewSession();
-  }
-
-  Future<void> reset() async {
-    await _startNewSession();
-  }
+  Future<void> dispatch(PetEvent event);
 
   bool canDispatch(PetEvent event) {
-    if (_session.isInitializing ||
-        _session.isThinking ||
-        _session.isStreaming) {
+    final currentSession = session;
+    if (currentSession.isInitializing ||
+        currentSession.isThinking ||
+        currentSession.isStreaming) {
       return false;
     }
 
-    if (!_session.hasActiveSession) {
+    if (!currentSession.hasActiveSession) {
       return false;
     }
 
-    return _nextPhaseFor(event, _session.phase) != null;
+    return nextPhaseFor(event, currentSession.phase) != null;
   }
+}
 
-  Future<void> dispatch(PetEvent event) async {
-    if (!canDispatch(event)) {
+abstract class SyncedPetSessionController extends PetSessionController {
+  SyncedPetSessionController(this.repository);
+
+  final PetSyncRepository repository;
+
+  StreamSubscription<PetSyncSessionRecord?>? _sessionSubscription;
+  StreamSubscription<PetSyncEventRecord?>? _activeEventSubscription;
+  StreamSubscription<SessionPhase>? _phaseSubscription;
+
+  PetSession _session = PetSession.initial();
+  PetSyncSessionRecord? _currentSnapshot;
+  PetSyncEventRecord? _currentActiveEvent;
+  SessionPhase _currentPhase = SessionPhase.idle;
+
+  bool _isDisposed = false;
+  bool _subscriptionsAttached = false;
+  bool _isInitializing = false;
+  bool _isGeneratingBio = false;
+  String? _transientErrorMessage;
+
+  @override
+  PetSession get session => _session;
+
+  PetSyncSessionRecord? get currentSnapshot => _currentSnapshot;
+
+  bool get isDisposed => _isDisposed;
+
+  Future<void> attachSyncState() async {
+    if (_subscriptionsAttached) {
       return;
     }
 
-    final currentSession = _session;
-    final animal = currentSession.animal;
-    final bio = currentSession.bio;
-    final nextPhase = _nextPhaseFor(event, currentSession.phase);
+    _subscriptionsAttached = true;
+    _sessionSubscription = repository.watchCurrentPetSession().listen((
+      snapshot,
+    ) {
+      _currentSnapshot = snapshot;
+      if (snapshot != null && _isInitializing) {
+        _isInitializing = false;
+      }
+      _rebuildSession();
+    });
+    _activeEventSubscription = repository.watchActiveEvent().listen((event) {
+      _currentActiveEvent = event;
+      _rebuildSession();
+    });
+    _phaseSubscription = repository.watchCurrentPhase().listen((phase) {
+      _currentPhase = phase;
+      _rebuildSession();
+    });
 
-    if (animal == null || bio == null || nextPhase == null) {
-      return;
+    await refreshSyncState();
+  }
+
+  Future<void> refreshSyncState() async {
+    _currentSnapshot = await repository.loadCurrentPetSession();
+    _currentActiveEvent = await repository.loadActiveEvent();
+    _currentPhase = await repository.loadCurrentPhase();
+    if (_currentSnapshot != null && _isInitializing) {
+      _isInitializing = false;
     }
-
-    final currentOperation = ++_operationId;
-    final pendingSpeech = StringBuffer();
-    final eventPayload = buildPetEventPayload(
-      event: event,
-      sessionPhase: currentSession.phase,
-    );
-
-    _setSession(
-      currentSession.copyWith(
-        isThinking: true,
-        isStreaming: false,
-        pendingSpeech: '',
-        errorMessage: null,
-      ),
-    );
-
-    try {
-      final reaction = await petAgent.reactStream(
-        event: event,
-        sessionPhase: currentSession.phase,
-        bio: bio,
-        animalSpec: animal,
-        transcript: currentSession.transcript,
-        onChunk: (chunk) {
-          if (!_isCurrent(currentOperation)) {
-            return;
-          }
-
-          pendingSpeech.write(chunk);
-          _setSession(
-            _session.copyWith(
-              isThinking: false,
-              isStreaming: true,
-              pendingSpeech: pendingSpeech.toString(),
-              errorMessage: null,
-            ),
-          );
-        },
-      );
-
-      if (!_isCurrent(currentOperation)) {
-        return;
-      }
-
-      final updatedTranscript =
-          List<PetTranscriptEntry>.of(currentSession.transcript)
-            ..add(PetTranscriptEntry.user(eventPayload))
-            ..add(PetTranscriptEntry.assistant(reaction.speech));
-
-      _setSession(
-        currentSession.copyWith(
-          phase: nextPhase,
-          transcript: updatedTranscript,
-          latestReaction: reaction,
-          pendingSpeech: '',
-          isThinking: false,
-          isStreaming: false,
-          errorMessage: null,
-        ),
-      );
-    } catch (error) {
-      if (!_isCurrent(currentOperation)) {
-        return;
-      }
-
-      debugPrint('Pomogotchi reaction failed for ${event.wireValue}: $error');
-      final updatedTranscript =
-          List<PetTranscriptEntry>.of(currentSession.transcript)
-            ..add(PetTranscriptEntry.user(eventPayload));
-      _setSession(
-        currentSession.copyWith(
-          phase: nextPhase,
-          transcript: updatedTranscript,
-          isThinking: false,
-          isStreaming: false,
-          pendingSpeech: '',
-          errorMessage: _friendlyError(error),
-        ),
-      );
-    }
+    _rebuildSession();
   }
 
-  SessionPhase? _nextPhaseFor(PetEvent event, SessionPhase currentPhase) {
-    return switch (event) {
-      PetEvent.startFocusSession =>
-        currentPhase == SessionPhase.idle ? SessionPhase.focusInProgress : null,
-      PetEvent.completeFocusSession || PetEvent.stopFocusSessionEarly =>
-        currentPhase == SessionPhase.focusInProgress ? SessionPhase.idle : null,
-      PetEvent.startBreak =>
-        currentPhase == SessionPhase.idle ? SessionPhase.breakInProgress : null,
-      PetEvent.completeBreak || PetEvent.stopBreakEarly =>
-        currentPhase == SessionPhase.breakInProgress ? SessionPhase.idle : null,
-      PetEvent.petPet ||
-      PetEvent.drinkWater ||
-      PetEvent.moveOrStretch => currentPhase,
-    };
+  void setInitializing(bool value) {
+    _isInitializing = value;
+    _rebuildSession();
   }
 
-  Future<void> _startNewSession() async {
-    final currentOperation = ++_operationId;
-
-    _setSession(
-      PetSession.initial().copyWith(
-        isInitializing: true,
-        isGeneratingBio: true,
-        errorMessage: null,
-      ),
-    );
-
-    try {
-      final animals = await animalLoader();
-      if (animals.isEmpty) {
-        throw const FormatException(
-          'No animal assets were found in assets/animals.',
-        );
-      }
-
-      final selectedAnimal = animals[random.nextInt(animals.length)];
-      final bio = await narrativeAgent.generateBio(selectedAnimal);
-
-      if (!_isCurrent(currentOperation)) {
-        return;
-      }
-
-      _setSession(
-        PetSession.initial().copyWith(
-          animal: selectedAnimal,
-          bio: bio,
-          latestReaction: PetReaction(speech: bio.summary),
-          isInitializing: false,
-          isGeneratingBio: false,
-          errorMessage: null,
-        ),
-      );
-    } catch (error) {
-      if (!_isCurrent(currentOperation)) {
-        return;
-      }
-
-      debugPrint('Pomogotchi bootstrap failed: $error');
-      _setSession(
-        PetSession.initial().copyWith(
-          isInitializing: false,
-          isGeneratingBio: false,
-          errorMessage: _friendlyError(error),
-        ),
-      );
-    }
+  void setGeneratingBio(bool value) {
+    _isGeneratingBio = value;
+    _rebuildSession();
   }
 
-  bool _isCurrent(int operationId) {
-    return !_isDisposed && operationId == _operationId;
+  void setTransientErrorMessage(String? errorMessage) {
+    _transientErrorMessage = errorMessage;
+    _rebuildSession();
   }
 
-  void _setSession(PetSession nextSession) {
+  void _rebuildSession() {
     if (_isDisposed) {
       return;
     }
 
-    _session = nextSession;
-    notifyListeners();
-  }
+    final snapshot = _currentSnapshot;
+    final latestSpeech = snapshot?.latestSpeech.trim() ?? '';
+    final latestReaction = latestSpeech.isEmpty
+        ? null
+        : PetReaction(speech: latestSpeech);
 
-  String _friendlyError(Object error) {
-    return error.toString().replaceFirst('Exception: ', '').trim();
+    _session = PetSession(
+      animal: snapshot?.animalSpec,
+      bio: snapshot == null
+          ? null
+          : PetBio(name: snapshot.bioName, summary: snapshot.bioSummary),
+      phase: _currentPhase,
+      transcript: const <PetTranscriptEntry>[],
+      latestReaction: latestReaction,
+      pendingSpeech: '',
+      isInitializing: _isInitializing && snapshot == null,
+      isGeneratingBio: _isGeneratingBio,
+      isThinking:
+          _currentActiveEvent?.status == PetEventStatus.pending ||
+          _currentActiveEvent?.status == PetEventStatus.processing,
+      isStreaming: false,
+      errorMessage: _transientErrorMessage ?? snapshot?.lastError,
+    );
+    notifyListeners();
   }
 
   @override
   void dispose() {
     _isDisposed = true;
-    narrativeAgent.dispose();
-    petAgent.dispose();
+    unawaited(_sessionSubscription?.cancel());
+    unawaited(_activeEventSubscription?.cancel());
+    unawaited(_phaseSubscription?.cancel());
     super.dispose();
   }
+}
+
+SessionPhase? nextPhaseFor(PetEvent event, SessionPhase currentPhase) {
+  return switch (event) {
+    PetEvent.startFocusSession =>
+      currentPhase == SessionPhase.idle ? SessionPhase.focusInProgress : null,
+    PetEvent.completeFocusSession || PetEvent.stopFocusSessionEarly =>
+      currentPhase == SessionPhase.focusInProgress ? SessionPhase.idle : null,
+    PetEvent.startBreak =>
+      currentPhase == SessionPhase.idle ? SessionPhase.breakInProgress : null,
+    PetEvent.completeBreak || PetEvent.stopBreakEarly =>
+      currentPhase == SessionPhase.breakInProgress ? SessionPhase.idle : null,
+    PetEvent.petPet ||
+    PetEvent.drinkWater ||
+    PetEvent.moveOrStretch => currentPhase,
+  };
+}
+
+String friendlyPetError(Object error) {
+  return error.toString().replaceFirst('Exception: ', '').trim();
 }

@@ -126,5 +126,3 @@ CREATE POLICY daily_activity_summary_delete_own
 ALTER TABLE sessions REPLICA IDENTITY FULL;
 ALTER TABLE wellness_events REPLICA IDENTITY FULL;
 ALTER TABLE daily_activity_summary REPLICA IDENTITY FULL;
-
-ALTER PUBLICATION powersync ADD TABLE sessions, wellness_events, daily_activity_summary;
