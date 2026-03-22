@@ -1,6 +1,6 @@
 # Pomogotchi
 
-Pomogotchi is a Flutter prototype for a local-first Pomodoro companion pet. The app combines a focus timer, hydration and movement check-ins, magic-link email sign-in, and cross-device sync through Supabase + PowerSync. The current Flutter app targets Apple devices first, with macOS as the main runtime and iPhone as the companion client.
+Pomogotchi is a local-first Pomodoro Timer and AI driven digial pet. The app combines a focus timer, hydration and movement check-ins, magic-link email sign-in, and cross-device sync through Supabase + PowerSync. The current Flutter app targets Apple devices first, with macOS as the main runtime and iPhone as the companion client.
 
 The repo is not a generic Flutter starter. It contains:
 
