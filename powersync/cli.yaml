@@ -1,0 +1,6 @@
+type: self-hosted
+api_url: http://localhost:8080
+api_key: !env PS_ADMIN_TOKEN
+plugins:
+  docker:
+    project_name: powersync_pomogotchi

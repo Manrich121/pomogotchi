@@ -6,7 +6,7 @@ The repo is not a generic Flutter starter. It contains:
 
 - `flutter_pomogotchi`: the Flutter app
 - `supabase`: local Supabase config, auth config, and database migrations
-- `docker`: PowerSync service configuration
+- `powersync`: PowerSync CLI config, sync config, and Docker stack
 - `docs`: product and technical planning documents
 
 ## What The App Currently Does
@@ -34,13 +34,14 @@ Install these before running the project locally:
 - [Flutter](https://docs.flutter.dev/get-started/install)
 - [Docker](https://docs.docker.com/get-docker/)
 - [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)
+- [PowerSync CLI](https://docs.powersync.com/tools/cli): `npm install -g powersync`
 
 ## Local Setup
 
 ### 1. Create local env file
 
 ```bash
-cp .env.local.template .env.local
+cp .env.template .env
 ```
 
 ### 2. Ensure Supabase signing keys exist
@@ -70,7 +71,7 @@ Useful local services from `supabase/config.toml`:
 In a second terminal:
 
 ```bash
-docker compose --file ./docker/compose.yaml --env-file .env.local up -d
+powersync docker start
 ```
 
 PowerSync is exposed on `http://localhost:8080`.
