@@ -110,102 +110,176 @@ class CactusNarrativeAgent implements NarrativeAgent {
   }
 
   PetBio _parseBioFromResponse(String rawResponse) {
-    final cleanedResponse = _stripThinking(rawResponse);
-    final extractedObject = _extractJsonObject(cleanedResponse);
-    if (extractedObject == null) {
-      final fallbackBio = _parseBioFromLabeledText(cleanedResponse);
-      if (fallbackBio != null) {
-        return fallbackBio;
-      }
-      throw const FormatException(
-        'Narrative response did not include JSON or labeled fields.',
-      );
-    }
-
-    final decoded = jsonDecode(extractedObject);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Narrative response JSON was not an object.');
-    }
-
-    final name = (decoded['name'] ?? '').toString().trim();
-    final summary = (decoded['summary'] ?? '').toString().trim();
-
-    if (name.isEmpty || name.contains(RegExp(r'\s'))) {
-      throw const FormatException(
-        'Narrative response returned an invalid name.',
-      );
-    }
-
-    if (summary.isEmpty) {
-      throw const FormatException(
-        'Narrative response returned an empty summary.',
-      );
-    }
-
-    return PetBio(name: name, summary: summary);
-  }
-
-  PetBio? _parseBioFromLabeledText(String rawResponse) {
-    final nameMatch = RegExp(
-      r'^\s*name\s*:\s*(.+)$',
-      caseSensitive: false,
-      multiLine: true,
-    ).firstMatch(rawResponse);
-    final summaryMatch = RegExp(
-      r'^\s*summary\s*:\s*(.+)$',
-      caseSensitive: false,
-      multiLine: true,
-    ).firstMatch(rawResponse);
-
-    if (nameMatch == null || summaryMatch == null) {
-      return null;
-    }
-
-    final name = nameMatch.group(1)?.trim() ?? '';
-    final summary = summaryMatch.group(1)?.trim() ?? '';
-    if (name.isEmpty || summary.isEmpty || name.contains(RegExp(r'\s'))) {
-      return null;
-    }
-
-    return PetBio(name: name, summary: summary);
-  }
-
-  String? _extractJsonObject(String rawResponse) {
-    final trimmed = rawResponse.trim();
-    if (trimmed.isEmpty) {
-      return null;
-    }
-
-    final fencedMatch = RegExp(
-      r'```(?:json)?\s*(\{.*\})\s*```',
-      dotAll: true,
-    ).firstMatch(trimmed);
-    if (fencedMatch != null) {
-      return fencedMatch.group(1);
-    }
-
-    final objectStart = trimmed.indexOf('{');
-    final objectEnd = trimmed.lastIndexOf('}');
-    if (objectStart == -1 || objectEnd <= objectStart) {
-      return null;
-    }
-
-    return trimmed.substring(objectStart, objectEnd + 1);
-  }
-
-  String _stripThinking(String rawResponse) {
-    return rawResponse
-        .replaceAll(
-          RegExp(r'<think>[\s\S]*?</think>', caseSensitive: false),
-          '',
-        )
-        .trim();
+    return parseNarrativeBioResponse(rawResponse);
   }
 
   @override
   void dispose() {
     _lm.unload();
   }
+}
+
+@visibleForTesting
+PetBio parseNarrativeBioResponse(String rawResponse) {
+  final cleanedResponse = _stripThinking(rawResponse);
+  final extractedObject = _extractJsonObject(cleanedResponse);
+
+  if (extractedObject != null) {
+    try {
+      return _parseBioFromJsonObject(extractedObject);
+    } on FormatException {
+      final recoveredBio = _parseBioFromLooseFields(extractedObject);
+      if (recoveredBio != null) {
+        return recoveredBio;
+      }
+    }
+  }
+
+  final fallbackBio =
+      _parseBioFromLabeledText(cleanedResponse) ??
+      _parseBioFromLooseFields(cleanedResponse) ??
+      _parseBioFromColonSummary(cleanedResponse);
+  if (fallbackBio != null) {
+    return fallbackBio;
+  }
+
+  throw const FormatException(
+    'Narrative response did not include a usable name and summary.',
+  );
+}
+
+PetBio _parseBioFromJsonObject(String extractedObject) {
+  final decoded = jsonDecode(extractedObject);
+  if (decoded is! Map<String, dynamic>) {
+    throw const FormatException('Narrative response JSON was not an object.');
+  }
+
+  final name = (decoded['name'] ?? '').toString().trim();
+  final summary = (decoded['summary'] ?? '').toString().trim();
+  return _validatedBio(name: name, summary: summary);
+}
+
+PetBio? _parseBioFromLabeledText(String rawResponse) {
+  final nameMatch = RegExp(
+    r'^\s*name\s*:\s*(.+)$',
+    caseSensitive: false,
+    multiLine: true,
+  ).firstMatch(rawResponse);
+  final summaryMatch = RegExp(
+    r'^\s*summary\s*:\s*(.+)$',
+    caseSensitive: false,
+    multiLine: true,
+  ).firstMatch(rawResponse);
+
+  if (nameMatch == null || summaryMatch == null) {
+    return null;
+  }
+
+  final name = nameMatch.group(1)?.trim() ?? '';
+  final summary = summaryMatch.group(1)?.trim() ?? '';
+  try {
+    return _validatedBio(name: name, summary: summary);
+  } on FormatException {
+    return null;
+  }
+}
+
+PetBio? _parseBioFromLooseFields(String rawResponse) {
+  final nameMatch = RegExp(
+    r'''["']?-?name["']?\s*:\s*["']?([A-Za-z][A-Za-z0-9_-]*)["']?''',
+    caseSensitive: false,
+  ).firstMatch(rawResponse);
+  final summaryMatch = RegExp(
+    r'''["']?-?summary["']?\s*:\s*["']([^"\r\n}]+)["']?''',
+    caseSensitive: false,
+  ).firstMatch(rawResponse);
+
+  if (nameMatch == null || summaryMatch == null) {
+    return null;
+  }
+
+  final name = nameMatch.group(1)?.trim() ?? '';
+  final summary = summaryMatch.group(1)?.trim() ?? '';
+  try {
+    return _validatedBio(name: name, summary: summary);
+  } on FormatException {
+    return null;
+  }
+}
+
+PetBio? _parseBioFromColonSummary(String rawResponse) {
+  for (final line in rawResponse.split('\n')) {
+    final match = RegExp(
+      r'^\s*([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.+)$',
+    ).firstMatch(line.trim());
+    if (match == null) {
+      continue;
+    }
+
+    final name = match.group(1)?.trim() ?? '';
+    final summary = match.group(2)?.trim() ?? '';
+    try {
+      return _validatedBio(name: name, summary: summary);
+    } on FormatException {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+PetBio _validatedBio({required String name, required String summary}) {
+  final normalizedName = name.trim();
+  final normalizedSummary = summary
+      .trim()
+      .replaceAll(RegExp(r'^\s*[-:"]+\s*'), '')
+      .replaceAll(RegExp(r'\s*,\s*$'), '')
+      .replaceAll(RegExp(r'\s*//.*$'), '')
+      .trim();
+
+  if (normalizedName.isEmpty || normalizedName.contains(RegExp(r'\s'))) {
+    throw const FormatException('Narrative response returned an invalid name.');
+  }
+
+  if (normalizedSummary.isEmpty) {
+    throw const FormatException(
+      'Narrative response returned an empty summary.',
+    );
+  }
+
+  return PetBio(name: normalizedName, summary: normalizedSummary);
+}
+
+String? _extractJsonObject(String rawResponse) {
+  final trimmed = rawResponse.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+
+  final fencedMatch = RegExp(
+    r'```(?:json)?\s*(\{.*\})\s*```',
+    dotAll: true,
+  ).firstMatch(trimmed);
+  if (fencedMatch != null) {
+    return fencedMatch.group(1);
+  }
+
+  final objectStart = trimmed.indexOf('{');
+  final objectEnd = trimmed.lastIndexOf('}');
+  if (objectStart == -1 || objectEnd <= objectStart) {
+    return null;
+  }
+
+  return trimmed.substring(objectStart, objectEnd + 1);
+}
+
+String _stripThinking(String rawResponse) {
+  return rawResponse
+      .replaceAll(
+        RegExp(r'<think>[\s\S]*?</think>', caseSensitive: false),
+        '',
+      )
+      .trim();
 }
 
 String _buildSystemPrompt() {

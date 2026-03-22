@@ -328,7 +328,7 @@ class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
 
     return PomogotchiHome(
       controller: controller,
-      onSignOut: _usesStatusBarSignOut ? null : _signOut,
+      onSignOut: _signOut,
     );
   }
 }

@@ -193,10 +193,7 @@ class PetSessionController extends ChangeNotifier {
         PetSession.initial().copyWith(
           animal: selectedAnimal,
           bio: bio,
-          latestReaction: PetReaction(
-            speech:
-                '${bio.name} the ${selectedAnimal.displayName.toLowerCase()} hops onto the platform, ready to keep you company.',
-          ),
+          latestReaction: PetReaction(speech: bio.summary),
           isInitializing: false,
           isGeneratingBio: false,
           errorMessage: null,

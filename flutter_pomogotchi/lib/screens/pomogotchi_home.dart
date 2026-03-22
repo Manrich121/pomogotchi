@@ -63,17 +63,17 @@ class PomogotchiHome extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _ScreenActions(onSignOut: onSignOut),
-                                if (onSignOut != null)
-                                  const SizedBox(height: 10),
-                                  _SessionHeader(session: petSession),
-                                  const SizedBox(height: 18),
+                                _SessionHeader(session: petSession),
+                                const SizedBox(height: 18),
                                 _TopActionRow(controller: controller),
                                 const SizedBox(height: 18),
                                 _SpeechBubble(
                                   speech: _displayedSpeech(
                                     session: petSession,
                                     pomodoroState: pomodoroState,
+                                  ),
+                                  maxLines: _speechBubbleMaxLines(
+                                    session: petSession,
                                   ),
                                   isPending:
                                       petSession.isThinking ||
@@ -100,7 +100,10 @@ class PomogotchiHome extends StatelessWidget {
                                 const SizedBox(height: 12),
                                 _DailySummaryPanel(controller: controller),
                                 const SizedBox(height: 12),
-                                _TestPanel(controller: controller),
+                                _TestPanel(
+                                  controller: controller,
+                                  onSignOut: onSignOut,
+                                ),
                               ],
                             ),
                           ),
@@ -139,29 +142,18 @@ class PomogotchiHome extends StatelessWidget {
 
     return 'Reset to spin up a fresh Pomogotchi session.';
   }
-}
 
-class _ScreenActions extends StatelessWidget {
-  const _ScreenActions({this.onSignOut});
+  int? _speechBubbleMaxLines({required PetSession session}) {
+    final bio = session.bio;
+    final latestReaction = session.latestReaction;
+    final isInitialBioSummary =
+        bio != null &&
+        latestReaction != null &&
+        session.transcript.isEmpty &&
+        session.pendingSpeech.trim().isEmpty &&
+        latestReaction.speech == bio.summary;
 
-  final Future<void> Function()? onSignOut;
-
-  @override
-  Widget build(BuildContext context) {
-    if (onSignOut == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        IconButton.outlined(
-          onPressed: onSignOut,
-          tooltip: 'Sign out',
-          icon: const Icon(Icons.logout_rounded),
-        ),
-      ],
-    );
+    return isInitialBioSummary ? 2 : null;
   }
 }
 
@@ -348,10 +340,15 @@ class _SessionHeader extends StatelessWidget {
 }
 
 class _SpeechBubble extends StatelessWidget {
-  const _SpeechBubble({required this.speech, required this.isPending});
+  const _SpeechBubble({
+    required this.speech,
+    required this.isPending,
+    this.maxLines,
+  });
 
   final String speech;
   final bool isPending;
+  final int? maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -368,6 +365,8 @@ class _SpeechBubble extends StatelessWidget {
           Text(
             speech,
             textAlign: TextAlign.center,
+            maxLines: maxLines,
+            overflow: maxLines == null ? null : TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               height: 1.3,
@@ -642,9 +641,13 @@ class _SummaryMetric extends StatelessWidget {
 }
 
 class _TestPanel extends StatelessWidget {
-  const _TestPanel({required this.controller});
+  const _TestPanel({
+    required this.controller,
+    this.onSignOut,
+  });
 
   final PomogotchiHomeController controller;
+  final Future<void> Function()? onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -715,6 +718,11 @@ class _TestPanel extends StatelessWidget {
                 onPressed: controller.resetAll,
                 isAccent: true,
               ),
+              if (onSignOut != null)
+                _PanelButton(
+                  label: 'Sign out',
+                  onPressed: onSignOut,
+                ),
             ],
           ),
         ],
