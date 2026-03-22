@@ -91,7 +91,7 @@ For iPhone development, run against an iOS simulator.
 
 ## Login Flow And Local Email Testing
 
-The app uses Supabase email OTP sign-in. When you tap `Send magic link`, the email is delivered to the local `Mailpit`/`Inbucket` test inbox started by `supabase start`.
+The app uses Supabase email OTP sign-in. When you tap `Send magic link`, the email is delivered to the local `Mailpit` test inbox started by `supabase start`.
 
 To complete sign-in locally:
 
@@ -106,24 +106,5 @@ For simulator and local-device testing, the 6-digit code path is usually the mos
 ## Flutter App Notes
 
 - The app config lives in `flutter_pomogotchi/lib/app_config.dart`.
-- Local development is already wired to `localhost` on Apple platforms and `10.0.2.2` on Android emulators.
-- The app uses Supabase auth plus PowerSync for authenticated sync.
-- If no Cactus token is provided, the pet agents default to local completion mode.
-
-## Tests And Verification
-
-From `flutter_pomogotchi`:
-
-```bash
-dart format .
-flutter analyze
-flutter test
-```
-
-Run integration coverage when changing flow-heavy behavior such as auth, timer lifecycle, or sync.
-
-## Project References
-
-- [OLD_README.md](./OLD_README.md)
-- [`flutter_pomogotchi`](./flutter_pomogotchi)
-- [`docs/technical-plan.md`](./docs/technical-plan.md)
+- Local development is already wired to `localhost` on Apple platforms
+- The app uses Supabase auth plus PowerSync for authenticated sync
