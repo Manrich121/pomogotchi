@@ -3,6 +3,8 @@ import 'package:powersync/powersync.dart';
 const sessionsTable = 'sessions';
 const wellnessEventsTable = 'wellness_events';
 const dailyActivitySummaryTable = 'daily_activity_summary';
+const petSessionsTable = 'pet_sessions';
+const petEventsTable = 'pet_events';
 
 const pomodoroSchema = Schema([
   Table(
@@ -51,6 +53,46 @@ const pomodoroSchema = Schema([
     indexes: [
       Index('summary_day_key', [IndexedColumn.ascending('day_key')]),
       Index('summary_updated_at', [IndexedColumn.ascending('updated_at')]),
+    ],
+  ),
+  Table(
+    petSessionsTable,
+    [
+      Column.text('animal_id'),
+      Column.text('bio_name'),
+      Column.text('bio_summary'),
+      Column.text('latest_speech'),
+      Column.text('latest_event_id'),
+      Column.text('last_error'),
+      Column.text('created_at'),
+      Column.text('updated_at'),
+    ],
+    indexes: [
+      Index('pet_sessions_updated_at', [IndexedColumn.ascending('updated_at')]),
+      Index('pet_sessions_latest_event_id', [
+        IndexedColumn.ascending('latest_event_id'),
+      ]),
+    ],
+  ),
+  Table(
+    petEventsTable,
+    [
+      Column.text('pet_session_id'),
+      Column.text('event_type'),
+      Column.text('source_device'),
+      Column.text('status'),
+      Column.text('reaction_speech'),
+      Column.text('error_message'),
+      Column.text('created_at'),
+      Column.text('claimed_at'),
+      Column.text('completed_at'),
+    ],
+    indexes: [
+      Index('pet_events_session_id', [
+        IndexedColumn.ascending('pet_session_id'),
+      ]),
+      Index('pet_events_status', [IndexedColumn.ascending('status')]),
+      Index('pet_events_created_at', [IndexedColumn.ascending('created_at')]),
     ],
   ),
 ]);

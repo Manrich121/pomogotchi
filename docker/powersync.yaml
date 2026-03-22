@@ -65,6 +65,37 @@ sync_config:
             updated_at
           FROM daily_activity_summary
           WHERE owner_id = auth.user_id()
+      pet_sessions:
+        auto_subscribe: true
+        query: |
+          SELECT
+            id,
+            animal_id,
+            bio_name,
+            bio_summary,
+            latest_speech,
+            latest_event_id,
+            last_error,
+            created_at,
+            updated_at
+          FROM pet_sessions
+          WHERE owner_id = auth.user_id()
+      pet_events:
+        auto_subscribe: true
+        query: |
+          SELECT
+            id,
+            pet_session_id,
+            event_type,
+            source_device,
+            status,
+            reaction_speech,
+            error_message,
+            created_at,
+            claimed_at,
+            completed_at
+          FROM pet_events
+          WHERE owner_id = auth.user_id()
 
 client_auth:
   jwks_uri: !env PS_BACKEND_JWKS_URI

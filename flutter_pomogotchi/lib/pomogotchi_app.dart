@@ -6,9 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pomogotchi/agents/narrative_agent.dart';
 import 'package:pomogotchi/agents/pet_agent.dart';
+import 'package:pomogotchi/controllers/ios_pet_session_controller.dart';
+import 'package:pomogotchi/controllers/macos_pet_session_controller.dart';
 import 'package:pomogotchi/controllers/pet_session_controller.dart';
 import 'package:pomogotchi/controllers/pomogotchi_home_controller.dart';
 import 'package:pomogotchi/features/auth/presentation/magic_link_sign_in_screen.dart';
+import 'package:pomogotchi/features/pet/data/pet_sync_repository.dart';
 import 'package:pomogotchi/features/pomodoro/application/pomodoro_controller.dart';
 import 'package:pomogotchi/features/pomodoro/data/pomodoro_database.dart';
 import 'package:pomogotchi/features/pomodoro/data/pomodoro_sync.dart';
@@ -17,6 +20,7 @@ import 'package:pomogotchi/screens/pomogotchi_home.dart';
 import 'package:pomogotchi/services/animal_catalog.dart';
 import 'package:pomogotchi/shared/services/app_clock.dart';
 import 'package:pomogotchi/shared/services/app_lifecycle_service.dart';
+import 'package:powersync/powersync.dart';
 
 class PomogotchiApp extends StatelessWidget {
   const PomogotchiApp({
@@ -168,7 +172,7 @@ class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
           clock: const SystemAppClock(),
           lifecycleService: lifecycle,
         ),
-        petSessionController: _buildPetSessionController(),
+        petSessionController: _buildPetSessionController(database),
       );
       await controller.initialize();
       if (!mounted) {
@@ -238,7 +242,12 @@ class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
     }
   }
 
-  PetSessionController _buildPetSessionController() {
+  PetSessionController _buildPetSessionController(PowerSyncDatabase database) {
+    final repository = PetSyncRepository(database);
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return IosPetSessionController(repository: repository);
+    }
+
     const cactusToken = String.fromEnvironment('CACTUS_TOKEN');
     const cactusModel = String.fromEnvironment('CACTUS_MODEL');
     const cactusNarrativeModel = String.fromEnvironment(
@@ -274,7 +283,8 @@ class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
             cactusToken: token,
           );
 
-    return PetSessionController(
+    return MacosPetSessionController(
+      repository: repository,
       narrativeAgent: narrativeAgent,
       petAgent: petAgent,
       animalLoader: () => discoverAnimalSpecs(rootBundle),
@@ -326,9 +336,6 @@ class _PomogotchiBootstrapState extends State<_PomogotchiBootstrap> {
       );
     }
 
-    return PomogotchiHome(
-      controller: controller,
-      onSignOut: _signOut,
-    );
+    return PomogotchiHome(controller: controller, onSignOut: _signOut);
   }
 }

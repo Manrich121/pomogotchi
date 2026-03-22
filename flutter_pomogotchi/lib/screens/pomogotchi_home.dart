@@ -6,11 +6,7 @@ import 'package:pomogotchi/features/pomodoro/application/pomodoro_view_state.dar
 import 'package:pomogotchi/models/pet_session.dart';
 
 class PomogotchiHome extends StatelessWidget {
-  const PomogotchiHome({
-    super.key,
-    required this.controller,
-    this.onSignOut,
-  });
+  const PomogotchiHome({super.key, required this.controller, this.onSignOut});
 
   final PomogotchiHomeController controller;
   final Future<void> Function()? onSignOut;
@@ -95,7 +91,9 @@ class PomogotchiHome extends StatelessWidget {
                                 ],
                                 if (petSession.errorMessage != null) ...[
                                   const SizedBox(height: 12),
-                                  _ErrorBanner(message: petSession.errorMessage!),
+                                  _ErrorBanner(
+                                    message: petSession.errorMessage!,
+                                  ),
                                 ],
                                 const SizedBox(height: 12),
                                 _DailySummaryPanel(controller: controller),
@@ -134,6 +132,10 @@ class PomogotchiHome extends StatelessWidget {
 
     if (pomodoroState.isLoading || session.isGeneratingBio) {
       return 'Warming up your Pomogotchi and restoring today\'s routine...';
+    }
+
+    if (session.isInitializing) {
+      return 'Waiting for your Pomogotchi to sync from Mac...';
     }
 
     if (session.errorMessage != null) {
@@ -323,7 +325,9 @@ class _SessionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = session.bio?.name ?? 'Summoning pet';
+    final name =
+        session.bio?.name ??
+        (session.isInitializing ? 'Waiting for Mac' : 'Summoning pet');
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -422,8 +426,7 @@ class _SessionActionDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = controller.pomodoroState.status;
     final buttons = switch (status) {
-      PomodoroScreenStatus.focusActive ||
-      PomodoroScreenStatus.breakActive => [
+      PomodoroScreenStatus.focusActive || PomodoroScreenStatus.breakActive => [
         _DockButtonData(
           key: const Key('session-pause'),
           label: 'Pause',
@@ -436,8 +439,7 @@ class _SessionActionDock extends StatelessWidget {
           outlined: true,
         ),
       ],
-      PomodoroScreenStatus.focusPaused ||
-      PomodoroScreenStatus.breakPaused => [
+      PomodoroScreenStatus.focusPaused || PomodoroScreenStatus.breakPaused => [
         _DockButtonData(
           key: const Key('session-resume'),
           label: 'Resume',
@@ -641,10 +643,7 @@ class _SummaryMetric extends StatelessWidget {
 }
 
 class _TestPanel extends StatelessWidget {
-  const _TestPanel({
-    required this.controller,
-    this.onSignOut,
-  });
+  const _TestPanel({required this.controller, this.onSignOut});
 
   final PomogotchiHomeController controller;
   final Future<void> Function()? onSignOut;
@@ -684,7 +683,10 @@ class _TestPanel extends StatelessWidget {
                 ),
               if (status == PomodoroScreenStatus.focusActive ||
                   status == PomodoroScreenStatus.breakActive)
-                _PanelButton(label: 'Pause', onPressed: controller.pauseSession),
+                _PanelButton(
+                  label: 'Pause',
+                  onPressed: controller.pauseSession,
+                ),
               if (status == PomodoroScreenStatus.focusPaused ||
                   status == PomodoroScreenStatus.breakPaused)
                 _PanelButton(
@@ -719,10 +721,7 @@ class _TestPanel extends StatelessWidget {
                 isAccent: true,
               ),
               if (onSignOut != null)
-                _PanelButton(
-                  label: 'Sign out',
-                  onPressed: onSignOut,
-                ),
+                _PanelButton(label: 'Sign out', onPressed: onSignOut),
             ],
           ),
         ],

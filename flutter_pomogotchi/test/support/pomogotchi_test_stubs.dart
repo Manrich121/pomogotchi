@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/widgets.dart';
-import 'package:pomogotchi/agents/narrative_agent.dart';
 import 'package:pomogotchi/agents/pet_agent.dart';
 import 'package:pomogotchi/controllers/pet_session_controller.dart';
 import 'package:pomogotchi/features/pomodoro/application/pomodoro_repository.dart';
@@ -14,6 +12,7 @@ import 'package:pomogotchi/models/animal_spec.dart';
 import 'package:pomogotchi/models/pet_bio.dart';
 import 'package:pomogotchi/models/pet_event.dart';
 import 'package:pomogotchi/models/pet_reaction.dart';
+import 'package:pomogotchi/models/pet_session.dart';
 import 'package:pomogotchi/models/pet_transcript_entry.dart';
 import 'package:pomogotchi/models/session_phase.dart';
 import 'package:pomogotchi/shared/services/app_clock.dart';
@@ -52,19 +51,6 @@ class FakeLifecycleService implements AppLifecycleService {
   Future<void> dispose() async {
     await _controller.close();
   }
-}
-
-class FakeNarrativeAgent implements NarrativeAgent {
-  @override
-  Future<PetBio> generateBio(AnimalSpec animalSpec) async {
-    return const PetBio(
-      name: 'Bernie',
-      summary: 'A scrappy little hype machine with a soft spot for effort.',
-    );
-  }
-
-  @override
-  void dispose() {}
 }
 
 class FakePetAgent implements PetAgent {
@@ -113,12 +99,79 @@ class FakePetAgent implements PetAgent {
 }
 
 PetSessionController buildTestPetSessionController({FakePetAgent? petAgent}) {
-  return PetSessionController(
-    narrativeAgent: FakeNarrativeAgent(),
-    petAgent: petAgent ?? FakePetAgent(),
-    animalLoader: () async => [AnimalSpec.fromAnimalAsset('assets/animals/dog.png')],
-    random: Random(1),
+  return TestPetSessionController(petAgent: petAgent ?? FakePetAgent());
+}
+
+class TestPetSessionController extends PetSessionController {
+  TestPetSessionController({required this.petAgent});
+
+  static const _testBio = PetBio(
+    name: 'Bernie',
+    summary: 'A scrappy little hype machine with a soft spot for effort.',
   );
+
+  final FakePetAgent petAgent;
+
+  PetSession _session = PetSession.initial();
+
+  @override
+  PetSession get session => _session;
+
+  @override
+  Future<void> bootstrap() async {
+    _session = PetSession.initial().copyWith(
+      animal: AnimalSpec.fromAnimalAsset('assets/animals/dog.png'),
+      bio: _testBio,
+      latestReaction: PetReaction(speech: _testBio.summary),
+      errorMessage: null,
+    );
+    notifyListeners();
+  }
+
+  @override
+  Future<void> dispatch(PetEvent event) async {
+    if (!canDispatch(event)) {
+      return;
+    }
+
+    final currentSession = _session;
+    final animal = currentSession.animal;
+    final bio = currentSession.bio;
+    final nextPhase = nextPhaseFor(event, currentSession.phase);
+    if (animal == null || bio == null || nextPhase == null) {
+      return;
+    }
+
+    final reaction = await petAgent.reactStream(
+      event: event,
+      sessionPhase: currentSession.phase,
+      bio: bio,
+      animalSpec: animal,
+      transcript: currentSession.transcript,
+      onChunk: (_) {},
+    );
+    final updatedTranscript =
+        List<PetTranscriptEntry>.of(currentSession.transcript)
+          ..add(
+            PetTranscriptEntry.user(
+              buildPetEventPayload(
+                event: event,
+                sessionPhase: currentSession.phase,
+              ),
+            ),
+          )
+          ..add(PetTranscriptEntry.assistant(reaction.speech));
+    _session = currentSession.copyWith(
+      phase: nextPhase,
+      transcript: updatedTranscript,
+      latestReaction: reaction,
+      errorMessage: null,
+    );
+    notifyListeners();
+  }
+
+  @override
+  Future<void> reset() => bootstrap();
 }
 
 class InMemoryPomodoroRepository implements PomodoroRepository {
