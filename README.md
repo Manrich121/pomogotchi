@@ -1,33 +1,128 @@
-# flutter_pomodoro
+# Pomogotchi
 
-Flutter Pomodoro application scaffold.
+Pomogotchi is a Flutter prototype for a local-first Pomodoro companion pet. The app combines a focus timer, hydration and movement check-ins, magic-link email sign-in, and cross-device sync through Supabase + PowerSync. The current Flutter app targets Apple devices first, with macOS as the main runtime and iPhone as the companion client.
 
-## Engineering Workflow
+The repo is not a generic Flutter starter. It contains:
 
-Project governance lives in [`.specify/memory/constitution.md`](.specify/memory/constitution.md).
-All implementation decisions, specs, and reviews are expected to follow it.
+- `flutter_pomogotchi`: the Flutter app
+- `supabase`: local Supabase config, auth config, and database migrations
+- `docker`: PowerSync service configuration
+- `docs`: product and technical planning documents
 
-Before merging a change, run:
+## What The App Currently Does
 
-- `dart format .`
-- `flutter analyze`
-- `flutter test`
-- `flutter test integration_test` when timer lifecycle, navigation, or other
-  end-to-end behavior changes
+The `flutter_pomogotchi` app already includes:
 
-## Implementation Expectations
+- Email sign-in with Supabase magic links and 6-digit email codes
+- Local SQLite-backed timer state with PowerSync replication
+- Focus sessions and break sessions
+- Hydration and movement event logging
+- Daily activity summaries synced per authenticated user
+- A Pomogotchi pet layer that reacts to timer and wellness events
+- Cactus-backed local or hybrid AI pet responses, with app-side fallbacks
 
-- Keep timer logic and state transitions out of large widget trees.
-- Reuse shared theme tokens and components before introducing custom UI patterns.
-- Define loading, empty, error, and success states for user-facing changes.
-- Treat performance as a requirement for timer accuracy, animations, startup, and
-  scrolling behavior.
+The synced database currently centers on:
 
-## Getting Started
+- `sessions`
+- `wellness_events`
+- `daily_activity_summary`
 
-Useful Flutter references:
+## Prerequisites
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-- [Flutter documentation](https://docs.flutter.dev/)
+Install these before running the project locally:
+
+- [Flutter](https://docs.flutter.dev/get-started/install)
+- [Docker](https://docs.docker.com/get-docker/)
+- [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)
+
+## Local Setup
+
+### 1. Create local env file
+
+```bash
+cp .env.local.template .env.local
+```
+
+### 2. Ensure Supabase signing keys exist
+
+This repo expects `supabase/signing_keys.json`. If it is missing, generate it with:
+
+```bash
+supabase gen signing-key --output supabase/signing_keys.json
+```
+
+### 3. Start Supabase
+
+From the repo root:
+
+```bash
+supabase start
+```
+
+Useful local services from `supabase/config.toml`:
+
+- Supabase API: `http://127.0.0.1:54321`
+- Supabase Studio: `http://127.0.0.1:54323`
+- Local auth email inbox (`Mailpit`): `http://127.0.0.1:54324`
+
+### 4. Start PowerSync
+
+In a second terminal:
+
+```bash
+docker compose --file ./docker/compose.yaml --env-file .env.local up -d
+```
+
+PowerSync is exposed on `http://localhost:8080`.
+
+### 5. Run the Flutter app
+
+```bash
+cd flutter_pomogotchi
+flutter pub get
+
+cp lib/app_config_template.dart lib/app_config.dart
+
+flutter run -d macos
+```
+
+For iPhone development, run against an iOS simulator or connected device instead of `macos`.
+
+## Login Flow And Local Email Testing
+
+The app uses Supabase email OTP sign-in. When you tap `Send magic link`, the email is delivered to the local `Mailpit`/`Inbucket` test inbox started by `supabase start`.
+
+To complete sign-in locally:
+
+1. Open `http://127.0.0.1:54324` in your browser.
+2. Open the newest auth email for the address you entered in the app.
+3. Use either of these flows:
+   - Click the magic link on the same device you are using for the app.
+   - Copy the 6-digit code from the email and enter it in the app under `Verify code`.
+
+For simulator and local-device testing, the 6-digit code path is usually the most direct because it does not depend on deep-link handling in the browser.
+
+## Flutter App Notes
+
+- The app config lives in `flutter_pomogotchi/lib/app_config.dart`.
+- Local development is already wired to `localhost` on Apple platforms and `10.0.2.2` on Android emulators.
+- The app uses Supabase auth plus PowerSync for authenticated sync.
+- If no Cactus token is provided, the pet agents default to local completion mode.
+
+## Tests And Verification
+
+From `flutter_pomogotchi`:
+
+```bash
+dart format .
+flutter analyze
+flutter test
+```
+
+Run integration coverage when changing flow-heavy behavior such as auth, timer lifecycle, or sync.
+
+## Project References
+
+- [OLD_README.md](./OLD_README.md)
+- [`flutter_pomogotchi`](./flutter_pomogotchi)
+- [`docs/technical-plan.md`](./docs/technical-plan.md)
