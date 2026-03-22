@@ -87,7 +87,7 @@ cp lib/app_config_template.dart lib/app_config.dart
 flutter run -d macos
 ```
 
-For iPhone development, run against an iOS simulator or connected device instead of `macos`.
+For iPhone development, run against an iOS simulator.
 
 ## Login Flow And Local Email Testing
 
