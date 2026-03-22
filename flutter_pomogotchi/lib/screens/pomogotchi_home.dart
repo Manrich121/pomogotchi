@@ -6,9 +6,14 @@ import 'package:pomogotchi/features/pomodoro/application/pomodoro_view_state.dar
 import 'package:pomogotchi/models/pet_session.dart';
 
 class PomogotchiHome extends StatelessWidget {
-  const PomogotchiHome({super.key, required this.controller});
+  const PomogotchiHome({
+    super.key,
+    required this.controller,
+    this.onSignOut,
+  });
 
   final PomogotchiHomeController controller;
+  final Future<void> Function()? onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -58,9 +63,12 @@ class PomogotchiHome extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                _ScreenActions(onSignOut: onSignOut),
+                                if (onSignOut != null)
+                                  const SizedBox(height: 10),
+                                  _SessionHeader(session: petSession),
+                                  const SizedBox(height: 18),
                                 _TopActionRow(controller: controller),
-                                const SizedBox(height: 18),
-                                _SessionHeader(session: petSession),
                                 const SizedBox(height: 18),
                                 _SpeechBubble(
                                   speech: _displayedSpeech(
@@ -130,6 +138,30 @@ class PomogotchiHome extends StatelessWidget {
     }
 
     return 'Reset to spin up a fresh Pomogotchi session.';
+  }
+}
+
+class _ScreenActions extends StatelessWidget {
+  const _ScreenActions({this.onSignOut});
+
+  final Future<void> Function()? onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    if (onSignOut == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        IconButton.outlined(
+          onPressed: onSignOut,
+          tooltip: 'Sign out',
+          icon: const Icon(Icons.logout_rounded),
+        ),
+      ],
+    );
   }
 }
 
@@ -272,20 +304,6 @@ class _TimerCard extends StatelessWidget {
       PomodoroScreenStatus.loading => 'Loading timer',
       PomodoroScreenStatus.error => 'Timer error',
       PomodoroScreenStatus.idle => 'Start focus',
-    };
-  }
-
-  String _hintForStatus(PomodoroScreenStatus status) {
-    return switch (status) {
-      PomodoroScreenStatus.focusActive => 'Stay with it. Your pet is locked in.',
-      PomodoroScreenStatus.focusPaused => 'Paused. Jump back in when ready.',
-      PomodoroScreenStatus.breakActive => 'Take the reset. Your pet approves.',
-      PomodoroScreenStatus.breakPaused => 'Break paused for a moment.',
-      PomodoroScreenStatus.focusCompleted => 'Take the win, then start your break.',
-      PomodoroScreenStatus.breakCompleted => 'You are clear to head back to idle.',
-      PomodoroScreenStatus.loading => 'Restoring today\'s session.',
-      PomodoroScreenStatus.error => 'Retry from the PoC controls below.',
-      PomodoroScreenStatus.idle => 'Tap to begin a 40-minute focus block.',
     };
   }
 
@@ -464,7 +482,6 @@ class _SessionActionDock extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0E8D0),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFF1F1A17), width: 2),
       ),

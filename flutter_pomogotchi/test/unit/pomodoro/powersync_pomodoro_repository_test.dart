@@ -27,7 +27,10 @@ void main() {
       path: p.join(tempDir.path, 'repository.db'),
     );
     await database.initialize();
-    repository = PowerSyncPomodoroRepository(database);
+    repository = PowerSyncPomodoroRepository(
+      database,
+      currentUserId: () => 'user-1',
+    );
   });
 
   tearDown(() async {
@@ -36,14 +39,14 @@ void main() {
   });
 
   test(
-    'creates deterministic daily summary ids per day',
+    'creates authenticated daily summary ids per day',
     () async {
       final summary = await repository.loadOrCreateDailySummary(
         dayKey: '2026-01-01',
         openedAt: DateTime.utc(2026, 1, 1, 9),
       );
 
-      expect(summary.id, 'local:2026-01-01');
+      expect(summary.id, 'user-1:2026-01-01');
       expect(summary.dayKey, '2026-01-01');
       expect(summary.endedFocusCount, 0);
       expect(summary.hydrationReminderActive, isFalse);

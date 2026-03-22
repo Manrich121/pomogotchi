@@ -1,6 +1,7 @@
 import 'package:pomogotchi/features/pomodoro/application/pomodoro_failure.dart';
 import 'package:pomogotchi/features/pomodoro/application/pomodoro_repository.dart';
 import 'package:pomogotchi/features/pomodoro/data/schema/pomodoro_schema.dart';
+import 'package:pomogotchi/features/pomodoro/data/pomodoro_sync.dart';
 import 'package:pomogotchi/features/pomodoro/domain/models/daily_activity_summary.dart';
 import 'package:pomogotchi/features/pomodoro/domain/models/session_record.dart';
 import 'package:pomogotchi/features/pomodoro/domain/models/wellness_event.dart';
@@ -12,13 +13,16 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
   PowerSyncPomodoroRepository(
     this._database, {
     Uuid? uuid,
+    String? Function()? currentUserId,
     DailySummaryService? dailySummaryService,
   }) : _uuid = uuid ?? const Uuid(),
+       _currentUserId = currentUserId ?? currentPomodoroUserId,
        _dailySummaryService =
            dailySummaryService ?? const DailySummaryService();
 
   final PowerSyncDatabase _database;
   final Uuid _uuid;
+  final String? Function() _currentUserId;
   final DailySummaryService _dailySummaryService;
 
   @override
@@ -621,7 +625,14 @@ class PowerSyncPomodoroRepository implements PomodoroRepository {
   }
 
   String _dailySummaryId(String dayKey) {
-    return 'local:$dayKey';
+    final userId = _currentUserId();
+    if (userId == null || userId.isEmpty) {
+      throw PomodoroPersistenceFailure(
+        'Failed to resolve the current authenticated user for daily summary storage',
+      );
+    }
+
+    return '$userId:$dayKey';
   }
 
   Future<void> _writeDailySummary(
