@@ -27,3 +27,6 @@ telemetry:
 api:
   tokens:
     - !env PS_ADMIN_TOKEN
+
+sync_config:
+  path: sync-config.yaml
