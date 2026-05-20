@@ -1,5 +1,7 @@
 enum PetEvent {
   startFocusSession,
+  pauseFocusSession,
+  resumeFocusSession,
   completeFocusSession,
   stopFocusSessionEarly,
   startBreak,
@@ -14,6 +16,8 @@ extension PetEventX on PetEvent {
   String get wireValue {
     return switch (this) {
       PetEvent.startFocusSession => 'start_focus_session',
+      PetEvent.pauseFocusSession => 'pause_focus_session',
+      PetEvent.resumeFocusSession => 'resume_focus_session',
       PetEvent.completeFocusSession => 'complete_focus_session',
       PetEvent.stopFocusSessionEarly => 'stop_focus_session_early',
       PetEvent.startBreak => 'start_break',
@@ -28,6 +32,8 @@ extension PetEventX on PetEvent {
   String get label {
     return switch (this) {
       PetEvent.startFocusSession => 'Start focus',
+      PetEvent.pauseFocusSession => 'Pause focus',
+      PetEvent.resumeFocusSession => 'Resume focus',
       PetEvent.completeFocusSession => 'Complete focus',
       PetEvent.stopFocusSessionEarly => 'Stop focus early',
       PetEvent.startBreak => 'Start break',
@@ -43,6 +49,13 @@ extension PetEventX on PetEvent {
     return switch (this) {
       PetEvent.petPet || PetEvent.drinkWater || PetEvent.moveOrStretch => true,
       _ => false,
+    };
+  }
+
+  bool get isSessionLifecycleEvent {
+    return switch (this) {
+      PetEvent.petPet || PetEvent.drinkWater || PetEvent.moveOrStretch => false,
+      _ => true,
     };
   }
 }

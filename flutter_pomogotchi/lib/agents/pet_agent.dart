@@ -85,7 +85,7 @@ class CactusPetAgent implements PetAgent {
 
     debugPrint('Pet agent raw response: ${result.response}');
 
-    final speech = _parseSpeechFromResponse(result.response);
+    final speech = parseSpeechFromResponse(result.response);
     if (speech.isEmpty) {
       throw const FormatException('Pet reaction completed without a reply.');
     }
@@ -123,7 +123,8 @@ class CactusPetAgent implements PetAgent {
     debugPrint(message);
   }
 
-  String _parseSpeechFromResponse(String rawResponse) {
+  @visibleForTesting
+  static String parseSpeechFromResponse(String rawResponse) {
     final cleanedResponse = _stripThinking(rawResponse);
     final extractedObject = _extractJsonObject(cleanedResponse);
     if (extractedObject != null) {
@@ -148,7 +149,7 @@ class CactusPetAgent implements PetAgent {
     throw const FormatException('Pet response was empty.');
   }
 
-  String? _extractJsonObject(String rawResponse) {
+  static String? _extractJsonObject(String rawResponse) {
     final trimmed = rawResponse.trim();
     if (trimmed.isEmpty) {
       return null;
@@ -171,14 +172,15 @@ class CactusPetAgent implements PetAgent {
     return trimmed.substring(objectStart, objectEnd + 1);
   }
 
-  String _cleanText(String rawText) {
-    return rawText
+  static String _cleanText(String rawText) {
+    final cleaned = rawText
         .replaceAll(RegExp(r'<\|im_end\|>'), '')
         .replaceAll(RegExp(r'</s>'), '')
         .trim();
+    return _stripEdgeDoubleQuotes(cleaned);
   }
 
-  String _stripThinking(String rawResponse) {
+  static String _stripThinking(String rawResponse) {
     return rawResponse
         .replaceAll(
           RegExp(r'<think>[\s\S]*?</think>', caseSensitive: false),
@@ -187,7 +189,7 @@ class CactusPetAgent implements PetAgent {
         .trim();
   }
 
-  String _limitToOneSentence(String rawText) {
+  static String _limitToOneSentence(String rawText) {
     final matches = RegExp(r'[^.!?]+[.!?]?').allMatches(rawText);
     final sentences = matches
         .map((match) => match.group(0)!.trim())
@@ -195,9 +197,26 @@ class CactusPetAgent implements PetAgent {
         .take(1)
         .toList();
     if (sentences.isEmpty) {
-      return rawText;
+      return _stripEdgeDoubleQuotes(rawText);
     }
-    return sentences.join(' ');
+    return _stripEdgeDoubleQuotes(sentences.join(' '));
+  }
+
+  static String _stripEdgeDoubleQuotes(String rawText) {
+    var text = rawText.trim();
+    const doubleQuoteChars = '"“”„‟';
+
+    while (text.isNotEmpty && doubleQuoteChars.contains(text[0])) {
+      text = text.substring(1).trimLeft();
+    }
+    while (
+      text.isNotEmpty &&
+      doubleQuoteChars.contains(text[text.length - 1])
+    ) {
+      text = text.substring(0, text.length - 1).trimRight();
+    }
+
+    return text;
   }
 
   @override
@@ -232,6 +251,8 @@ Style rules:
 
 Behavior rules:
 - Praise completed focus sessions.
+- Be calm and supportive when the user pauses focus.
+- Welcome the user back when they resume focus.
 - Be gentle and supportive when the user stops early.
 - Treat breaks as healthy rest.
 - Respond warmly to pets, water, and stretching.
@@ -263,6 +284,8 @@ String _eventPrompt(PetEvent event) {
   return switch (event) {
     PetEvent.startFocusSession =>
       'The user is starting a focus session right now.',
+    PetEvent.pauseFocusSession => 'The user just paused their focus session.',
+    PetEvent.resumeFocusSession => 'The user just resumed their focus session.',
     PetEvent.completeFocusSession => 'The user just completed a focus session.',
     PetEvent.stopFocusSessionEarly =>
       'The user stopped their focus session early.',

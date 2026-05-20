@@ -76,6 +76,10 @@ class FakePetAgent implements PetAgent {
     final speech = switch (event) {
       PetEvent.startFocusSession =>
         'Focus face on. I am perched right here with you.',
+      PetEvent.pauseFocusSession =>
+        'Taking a breather counts too. I will hold your place.',
+      PetEvent.resumeFocusSession =>
+        'You are back in it. I am still locked in with you.',
       PetEvent.completeFocusSession =>
         'That was strong work. Take the win, then breathe out.',
       PetEvent.stopFocusSessionEarly =>

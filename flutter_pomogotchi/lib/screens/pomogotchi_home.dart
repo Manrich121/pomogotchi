@@ -95,7 +95,7 @@ class PomogotchiHome extends StatelessWidget {
                                     message: petSession.errorMessage!,
                                   ),
                                 ],
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 15),
                                 _DailySummaryPanel(controller: controller),
                                 const SizedBox(height: 12),
                                 _TestPanel(

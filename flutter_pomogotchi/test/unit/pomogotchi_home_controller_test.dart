@@ -57,26 +57,47 @@ void main() {
     ]);
   });
 
-  test('hydration and movement logging trigger both timer and pet paths', () async {
-    await controller.logHydration();
-    await controller.logMovement();
+  test('pause and resume focus keep timer and pet in sync', () async {
+    await controller.startFocus();
+    await controller.pauseSession();
 
-    expect(repository.eventCountFor(WellnessEventType.hydration), 1);
-    expect(repository.eventCountFor(WellnessEventType.movement), 1);
+    expect(controller.pomodoroState.status, PomodoroScreenStatus.focusPaused);
+    expect(controller.petSession.phase, SessionPhase.focusInProgress);
+
+    await controller.resumeSession();
+
+    expect(controller.pomodoroState.status, PomodoroScreenStatus.focusActive);
+    expect(controller.petSession.phase, SessionPhase.focusInProgress);
     expect(petAgent.events, [
-      PetEvent.drinkWater,
-      PetEvent.moveOrStretch,
+      PetEvent.startFocusSession,
+      PetEvent.pauseFocusSession,
+      PetEvent.resumeFocusSession,
     ]);
   });
 
-  test('resetAll clears today summary data and keeps a bootstrapped pet', () async {
-    await controller.logHydration();
-    expect(controller.pomodoroState.dailySummary?.hydrationCount, 1);
+  test(
+    'hydration and movement logging trigger both timer and pet paths',
+    () async {
+      await controller.logHydration();
+      await controller.logMovement();
 
-    await controller.resetAll();
+      expect(repository.eventCountFor(WellnessEventType.hydration), 1);
+      expect(repository.eventCountFor(WellnessEventType.movement), 1);
+      expect(petAgent.events, [PetEvent.drinkWater, PetEvent.moveOrStretch]);
+    },
+  );
 
-    expect(controller.pomodoroState.status, PomodoroScreenStatus.idle);
-    expect(controller.pomodoroState.dailySummary?.hydrationCount, 0);
-    expect(controller.petSession.hasActiveSession, isTrue);
-  });
+  test(
+    'resetAll clears today summary data and keeps a bootstrapped pet',
+    () async {
+      await controller.logHydration();
+      expect(controller.pomodoroState.dailySummary?.hydrationCount, 1);
+
+      await controller.resetAll();
+
+      expect(controller.pomodoroState.status, PomodoroScreenStatus.idle);
+      expect(controller.pomodoroState.dailySummary?.hydrationCount, 0);
+      expect(controller.petSession.hasActiveSession, isTrue);
+    },
+  );
 }
