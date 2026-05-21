@@ -73,6 +73,39 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets(
+    'pause and resume focus update the pet reaction on the main screen',
+    (tester) async {
+      await pumpApp(tester);
+
+      await tester.tap(find.byKey(const Key('timer-card')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Focus face on. I am perched right here with you.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('session-pause')));
+      await tester.pumpAndSettle();
+      expect(controller.pomodoroState.status, PomodoroScreenStatus.focusPaused);
+      expect(
+        find.text('Taking a breather counts too. I will hold your place.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('session-resume')));
+      await tester.pumpAndSettle();
+      expect(controller.pomodoroState.status, PomodoroScreenStatus.focusActive);
+      expect(
+        find.text('You are back in it. I am still locked in with you.'),
+        findsOneWidget,
+      );
+
+      await controller.stopSession();
+      await tester.pumpAndSettle();
+    },
+  );
+
   testWidgets('focus completion shows break CTA and updates summary', (
     tester,
   ) async {
@@ -86,7 +119,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump();
 
-    expect(controller.pomodoroState.status, PomodoroScreenStatus.focusCompleted);
+    expect(
+      controller.pomodoroState.status,
+      PomodoroScreenStatus.focusCompleted,
+    );
     expect(controller.pomodoroState.dailySummary?.endedFocusCount, 1);
     expect(find.byKey(const Key('session-start-break')), findsOneWidget);
     expect(find.text('Focus complete'), findsWidgets);
@@ -108,5 +144,4 @@ void main() {
     expect(textForKey(tester, const Key('daily-summary-hydration-count')), '1');
     expect(textForKey(tester, const Key('daily-summary-movement-count')), '1');
   });
-
 }

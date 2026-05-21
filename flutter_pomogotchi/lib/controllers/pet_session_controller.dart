@@ -20,13 +20,16 @@ abstract class PetSessionController extends ChangeNotifier {
 
   bool canDispatch(PetEvent event) {
     final currentSession = session;
-    if (currentSession.isInitializing ||
-        currentSession.isThinking ||
-        currentSession.isStreaming) {
+    if (currentSession.isInitializing) {
       return false;
     }
 
     if (!currentSession.hasActiveSession) {
+      return false;
+    }
+
+    if ((currentSession.isThinking || currentSession.isStreaming) &&
+        !event.isSessionLifecycleEvent) {
       return false;
     }
 
@@ -123,6 +126,9 @@ abstract class SyncedPetSessionController extends PetSessionController {
     final latestReaction = latestSpeech.isEmpty
         ? null
         : PetReaction(speech: latestSpeech);
+    final pendingSpeech = _currentActiveEvent == null
+        ? ''
+        : _pendingSpeechFor(_currentActiveEvent!.event);
 
     _session = PetSession(
       animal: snapshot?.animalSpec,
@@ -132,7 +138,7 @@ abstract class SyncedPetSessionController extends PetSessionController {
       phase: _currentPhase,
       transcript: const <PetTranscriptEntry>[],
       latestReaction: latestReaction,
-      pendingSpeech: '',
+      pendingSpeech: pendingSpeech,
       isInitializing: _isInitializing && snapshot == null,
       isGeneratingBio: _isGeneratingBio,
       isThinking:
@@ -154,16 +160,47 @@ abstract class SyncedPetSessionController extends PetSessionController {
   }
 }
 
+String _pendingSpeechFor(PetEvent event) {
+  return switch (event) {
+    PetEvent.startFocusSession => 'I am getting into focus mode with you...',
+    PetEvent.pauseFocusSession =>
+      'I am settling in while you take a breather...',
+    PetEvent.resumeFocusSession => 'I am leaning back into focus with you...',
+    PetEvent.completeFocusSession => 'I am lining up a proper win for you...',
+    PetEvent.stopFocusSessionEarly => 'I am finding something gentle to say...',
+    PetEvent.startBreak => 'I am easing into break mode with you...',
+    PetEvent.completeBreak => 'I am wrapping up that break with you...',
+    PetEvent.stopBreakEarly => 'I am adjusting to the shorter break...',
+    PetEvent.petPet => '...',
+    PetEvent.drinkWater => '...',
+    PetEvent.moveOrStretch => '...',
+  };
+}
+
 SessionPhase? nextPhaseFor(PetEvent event, SessionPhase currentPhase) {
   return switch (event) {
     PetEvent.startFocusSession =>
-      currentPhase == SessionPhase.idle ? SessionPhase.focusInProgress : null,
+      currentPhase == SessionPhase.idle ||
+              currentPhase == SessionPhase.focusInProgress
+          ? SessionPhase.focusInProgress
+          : null,
+    PetEvent.pauseFocusSession || PetEvent.resumeFocusSession =>
+      currentPhase == SessionPhase.focusInProgress ? currentPhase : null,
     PetEvent.completeFocusSession || PetEvent.stopFocusSessionEarly =>
-      currentPhase == SessionPhase.focusInProgress ? SessionPhase.idle : null,
+      currentPhase == SessionPhase.focusInProgress ||
+              currentPhase == SessionPhase.idle
+          ? SessionPhase.idle
+          : null,
     PetEvent.startBreak =>
-      currentPhase == SessionPhase.idle ? SessionPhase.breakInProgress : null,
+      currentPhase == SessionPhase.idle ||
+              currentPhase == SessionPhase.breakInProgress
+          ? SessionPhase.breakInProgress
+          : null,
     PetEvent.completeBreak || PetEvent.stopBreakEarly =>
-      currentPhase == SessionPhase.breakInProgress ? SessionPhase.idle : null,
+      currentPhase == SessionPhase.breakInProgress ||
+              currentPhase == SessionPhase.idle
+          ? SessionPhase.idle
+          : null,
     PetEvent.petPet ||
     PetEvent.drinkWater ||
     PetEvent.moveOrStretch => currentPhase,

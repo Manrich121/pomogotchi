@@ -67,11 +67,33 @@ class PomogotchiHomeController extends ChangeNotifier {
   }
 
   Future<void> pauseSession() async {
+    final activeSession = pomodoroState.activeSession;
+    if (activeSession == null) {
+      return;
+    }
+
     await pomodoroController.pauseSession();
+    final pausedSession = pomodoroState.activeSession;
+    if (activeSession.type == SessionType.focus &&
+        pausedSession?.id == activeSession.id &&
+        pausedSession?.state == SessionLifecycleState.paused) {
+      await petSessionController.dispatch(PetEvent.pauseFocusSession);
+    }
   }
 
   Future<void> resumeSession() async {
+    final activeSession = pomodoroState.activeSession;
+    if (activeSession == null) {
+      return;
+    }
+
     await pomodoroController.resumeSession();
+    final resumedSession = pomodoroState.activeSession;
+    if (activeSession.type == SessionType.focus &&
+        resumedSession?.id == activeSession.id &&
+        resumedSession?.state == SessionLifecycleState.active) {
+      await petSessionController.dispatch(PetEvent.resumeFocusSession);
+    }
   }
 
   Future<void> stopSession() async {
