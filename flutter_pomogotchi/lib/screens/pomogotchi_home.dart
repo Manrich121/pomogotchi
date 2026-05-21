@@ -95,7 +95,7 @@ class PomogotchiHome extends StatelessWidget {
                                     message: petSession.errorMessage!,
                                   ),
                                 ],
-                                const SizedBox(height: 15),
+                                const SizedBox(height: 70),
                                 _DailySummaryPanel(controller: controller),
                                 const SizedBox(height: 12),
                                 _TestPanel(
@@ -390,29 +390,44 @@ class _PetStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Align(
-          alignment: Alignment.topCenter,
-          child: session.animal == null
-              ? const _EmptyPetStage()
-              : Transform.translate(
-                  offset: const Offset(0, -60),
-                  child: _StageImage(
-                    assetPath: session.animal!.artAssetPath,
-                    width: 185,
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final leftInset = max(12.0, constraints.maxWidth * 0.03);
+        final bottomInset = max(
+          100.0,
+          min(84.0, constraints.maxHeight * 0.22),
+        );
+
+        return Stack(
+          children: [
+            Align(
+              alignment: Alignment.topCenter,
+              child: session.animal == null
+                  ? const _EmptyPetStage()
+                  : Transform.translate(
+                      offset: const Offset(0, -60),
+                      child: _StageImage(
+                        assetPath: session.animal!.artAssetPath,
+                        width: 230,
+                      ),
+                    ),
+            ),
+            Align(
+              alignment: Alignment.bottomLeft,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: leftInset,
+                  bottom: bottomInset,
                 ),
-        ),
-        Positioned(
-          left: 0,
-          top: 0,
-          child: _HeartButton(
-            enabled: controller.canPet,
-            onPressed: controller.petPet,
-          ),
-        ),
-      ],
+                child: _HeartButton(
+                  enabled: controller.canPet,
+                  onPressed: controller.petPet,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
