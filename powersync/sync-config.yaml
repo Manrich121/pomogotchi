@@ -2,9 +2,6 @@ config:
   edition: 3
 
 streams:
-  counters:
-    query: SELECT * FROM counters
-    auto_subscribe: true
   sessions:
     auto_subscribe: true
     query: |
